@@ -2,7 +2,6 @@
 # -*- coding:utf-8 -*-
 
 import glob
-from io import UnsupportedOperation
 import os
 import os.path as osp
 import random
@@ -41,21 +40,22 @@ for k, v in ExifTags.TAGS.items():
 
 class TrainValDataset(Dataset):
     '''YOLOv6 train_loader/val_loader, loads images and labels for training and validation.'''
+
     def __init__(
-        self,
-        img_dir,
-        img_size=640,
-        batch_size=16,
-        augment=False,
-        hyp=None,
-        rect=False,
-        check_images=False,
-        check_labels=False,
-        stride=32,
-        pad=0.0,
-        rank=-1,
-        data_dict=None,
-        task="train",
+            self,
+            img_dir,
+            img_size=640,
+            batch_size=16,
+            augment=False,
+            hyp=None,
+            rect=False,
+            check_images=False,
+            check_labels=False,
+            stride=32,
+            pad=0.0,
+            rank=-1,
+            data_dict=None,
+            task="train",
     ):
         assert task.lower() in ("train", "val", "speed"), f"Not supported task: {task}"
         t1 = time.time()
@@ -70,12 +70,12 @@ class TrainValDataset(Dataset):
             self.batch_indices = np.floor(
                 np.arange(len(shapes)) / self.batch_size
             ).astype(
-                np.int
+                int
             )  # batch indices of each image
             self.sort_files_shapes()
         t2 = time.time()
         if self.main_process:
-            LOGGER.info(f"%.1fs for dataset initialization." % (t2 - t1))
+            LOGGER.info("%.1fs for dataset initialization." % (t2 - t1))
 
     def __len__(self):
         """Get the length of dataset"""
@@ -112,10 +112,11 @@ class TrainValDataset(Dataset):
                 else self.img_size
             )  # final letterboxed shape
             if self.hyp and "letterbox_return_int" in self.hyp:
-                img, ratio, pad = letterbox(img, shape, auto=False, scaleup=self.augment, return_int=self.hyp["letterbox_return_int"])
+                img, ratio, pad = letterbox(img, shape, auto=False, scaleup=self.augment,
+                                            return_int=self.hyp["letterbox_return_int"])
             else:
                 img, ratio, pad = letterbox(img, shape, auto=False, scaleup=self.augment)
-                  
+
             shapes = (h0, w0), ((h / h0, w / w0), pad)  # for COCO mAP rescaling
 
             labels = self.labels[index].copy()
@@ -125,16 +126,16 @@ class TrainValDataset(Dataset):
                 # new boxes
                 boxes = np.copy(labels[:, 1:])
                 boxes[:, 0] = (
-                    w * (labels[:, 1] - labels[:, 3] / 2) + pad[0]
+                        w * (labels[:, 1] - labels[:, 3] / 2) + pad[0]
                 )  # top left x
                 boxes[:, 1] = (
-                    h * (labels[:, 2] - labels[:, 4] / 2) + pad[1]
+                        h * (labels[:, 2] - labels[:, 4] / 2) + pad[1]
                 )  # top left y
                 boxes[:, 2] = (
-                    w * (labels[:, 1] + labels[:, 3] / 2) + pad[0]
+                        w * (labels[:, 1] + labels[:, 3] / 2) + pad[0]
                 )  # bottom right x
                 boxes[:, 3] = (
-                    h * (labels[:, 2] + labels[:, 4] / 2) + pad[1]
+                        h * (labels[:, 2] + labels[:, 4] / 2) + pad[1]
                 )  # bottom right y
                 labels[:, 1:] = boxes
 
@@ -273,7 +274,6 @@ class TrainValDataset(Dataset):
             rel_path = osp.relpath(full_path, base_path)
             return osp.join(osp.dirname(rel_path), osp.splitext(osp.basename(rel_path))[0] + new_ext)
 
-
         img_paths = list(img_info.keys())
         label_paths = sorted(
             osp.join(label_dir, _new_rel_path_with_ext(img_dir, p, ".txt"))
@@ -296,13 +296,13 @@ class TrainValDataset(Dataset):
                 )
                 pbar = tqdm(pbar, total=len(label_paths)) if self.main_process else pbar
                 for (
-                    img_path,
-                    labels_per_file,
-                    nc_per_file,
-                    nm_per_file,
-                    nf_per_file,
-                    ne_per_file,
-                    msg,
+                        img_path,
+                        labels_per_file,
+                        nc_per_file,
+                        nm_per_file,
+                        nf_per_file,
+                        ne_per_file,
+                        msg,
                 ) in pbar:
                     if nc_per_file == 0:
                         img_info[img_path]["labels"] = labels_per_file
@@ -328,8 +328,9 @@ class TrainValDataset(Dataset):
                 )
 
         if self.task.lower() == "val":
-            if self.data_dict.get("is_coco", False): # use original json file when evaluating on coco dataset.
-                assert osp.exists(self.data_dict["anno_path"]), "Eval on coco dataset must provide valid path of the annotation file in config file: data/coco.yaml"
+            if self.data_dict.get("is_coco", False):  # use original json file when evaluating on coco dataset.
+                assert osp.exists(self.data_dict[
+                                      "anno_path"]), "Eval on coco dataset must provide valid path of the annotation file in config file: data/coco.yaml"
             else:
                 assert (
                     self.class_names
@@ -429,15 +430,15 @@ class TrainValDataset(Dataset):
             elif mini > 1:
                 shapes[i] = [1, 1 / mini]
         self.batch_shapes = (
-            np.ceil(np.array(shapes) * self.img_size / self.stride + self.pad).astype(
-                np.int
-            )
-            * self.stride
+                np.ceil(np.array(shapes) * self.img_size / self.stride + self.pad).astype(
+                    int
+                )
+                * self.stride
         )
 
     @staticmethod
     def check_image(im_file):
-        '''Verify an image.'''
+        """Verify an image."""
         nc, msg = 0, ""
         try:
             im = Image.open(im_file)
@@ -485,14 +486,15 @@ class TrainValDataset(Dataset):
                     ]
                     labels = np.array(labels, dtype=np.float32)
                 if len(labels):
+                    # when checking labels, we need to check for the centers
                     assert all(
-                        len(l) == 5 for l in labels
+                        len(l) == 6 for l in labels
                     ), f"{lb_path}: wrong label format."
                     assert (
-                        labels >= 0
+                            labels >= 0
                     ).all(), f"{lb_path}: Label values error: all values in label file must > 0"
                     assert (
-                        labels[:, 1:] <= 1
+                            labels[:, 1:] <= 1
                     ).all(), f"{lb_path}: Label values error: all coordinates must be normalized"
 
                     _, indices = np.unique(labels, axis=0, return_index=True)
@@ -523,7 +525,7 @@ class TrainValDataset(Dataset):
             )
 
         ann_id = 0
-        LOGGER.info(f"Convert to COCO format")
+        LOGGER.info("Convert to COCO format")
         for i, (img_path, info) in enumerate(tqdm(img_info.items())):
             labels = info["labels"] if info["labels"] else []
             img_id = osp.splitext(osp.basename(img_path))[0]
@@ -575,7 +577,7 @@ class TrainValDataset(Dataset):
         h = hashlib.md5("".join(paths).encode())
         return h.hexdigest()
 
-        
+
 class LoadData:
     def __init__(self, path):
         p = str(Path(path).resolve())  # os-agnostic absolute path
@@ -594,13 +596,16 @@ class LoadData:
             self.add_video(vidp[0])  # new video
         else:
             self.cap = None
+
     @staticmethod
     def checkext(path):
         file_type = 'image' if path.split('.')[-1].lower() in IMG_FORMATS else 'video'
         return file_type
+
     def __iter__(self):
         self.count = 0
         return self
+
     def __next__(self):
         if self.count == self.nf:
             raise StopIteration
@@ -621,9 +626,11 @@ class LoadData:
             self.count += 1
             img = cv2.imread(path)  # BGR
         return img, path, self.cap
+
     def add_video(self, path):
         self.frame = 0
         self.cap = cv2.VideoCapture(path)
         self.frames = int(self.cap.get(cv2.CAP_PROP_FRAME_COUNT))
+
     def __len__(self):
         return self.nf  # number of files

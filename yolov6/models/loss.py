@@ -14,7 +14,8 @@ from yolov6.assigners.tal_assigner import TaskAlignedAssigner
 
 class ComputeLoss:
     '''Loss computation func.'''
-    def __init__(self, 
+
+    def __init__(self,
                  fpn_strides=[8, 16, 32],
                  grid_cell_size=5.0,
                  grid_cell_offset=0.5,
@@ -29,13 +30,13 @@ class ComputeLoss:
                      'iou': 2.5,
                      'dfl': 0.5}
                  ):
-        
+
         self.fpn_strides = fpn_strides
         self.grid_cell_size = grid_cell_size
         self.grid_cell_offset = grid_cell_offset
         self.num_classes = num_classes
         self.ori_img_size = ori_img_size
-        
+
         self.warmup_epoch = warmup_epoch
         self.warmup_assigner = ATSSAssigner(9, num_classes=self.num_classes)
         self.formal_assigner = TaskAlignedAssigner(topk=13, num_classes=self.num_classes, alpha=1.0, beta=6.0)
@@ -46,32 +47,33 @@ class ComputeLoss:
         self.iou_type = iou_type
         self.varifocal_loss = VarifocalLoss().cuda()
         self.bbox_loss = BboxLoss(self.num_classes, self.reg_max, self.use_dfl, self.iou_type).cuda()
-        self.loss_weight = loss_weight       
-        
+        self.loss_weight = loss_weight
+
     def __call__(
-        self,
-        outputs,
-        targets,
-        epoch_num
+            self,
+            outputs,
+            targets,
+            epoch_num
     ):
-        
+
         feats, pred_scores, pred_distri = outputs
         anchors, anchor_points, n_anchors_list, stride_tensor = \
-               generate_anchors(feats, self.fpn_strides, self.grid_cell_size, self.grid_cell_offset, device=feats[0].device)
-   
+            generate_anchors(feats, self.fpn_strides, self.grid_cell_size, self.grid_cell_offset,
+                             device=feats[0].device)
+
         assert pred_scores.type() == pred_distri.type()
-        gt_bboxes_scale = torch.full((1,4), self.ori_img_size).type_as(pred_scores)
+        gt_bboxes_scale = torch.full((1, 4), self.ori_img_size).type_as(pred_scores)
         batch_size = pred_scores.shape[0]
 
         # targets
-        targets =self.preprocess(targets, batch_size, gt_bboxes_scale)
+        targets = self.preprocess(targets, batch_size, gt_bboxes_scale)
         gt_labels = targets[:, :, :1]
-        gt_bboxes = targets[:, :, 1:] #xyxy
+        gt_bboxes = targets[:, :, 1:]  # xyxy
         mask_gt = (gt_bboxes.sum(-1, keepdim=True) > 0).float()
-        
+
         # pboxes
         anchor_points_s = anchor_points / stride_tensor
-        pred_bboxes = self.bbox_decode(anchor_points_s, pred_distri) #xyxy
+        pred_bboxes = self.bbox_decode(anchor_points_s, pred_distri)  # xyxy
 
         if epoch_num < self.warmup_epoch:
             target_labels, target_bboxes, target_scores, fg_mask = \
@@ -99,37 +101,40 @@ class ComputeLoss:
         target_labels = torch.where(fg_mask > 0, target_labels, torch.full_like(target_labels, self.num_classes))
         one_hot_label = F.one_hot(target_labels, self.num_classes + 1)[..., :-1]
         loss_cls = self.varifocal_loss(pred_scores, target_scores, one_hot_label)
-            
+
         target_scores_sum = target_scores.sum()
         loss_cls /= target_scores_sum
-        
+
         # bbox loss
-        loss_iou, loss_dfl = self.bbox_loss(pred_distri, pred_bboxes, anchor_points_s, target_bboxes, 
+        loss_iou, loss_dfl = self.bbox_loss(pred_distri, pred_bboxes, anchor_points_s, target_bboxes,
                                             target_scores, target_scores_sum, fg_mask)
-        
+
         loss = self.loss_weight['class'] * loss_cls + \
                self.loss_weight['iou'] * loss_iou + \
                self.loss_weight['dfl'] * loss_dfl
-       
+
         return loss, \
-            torch.cat(((self.loss_weight['iou'] * loss_iou).unsqueeze(0), 
-                         (self.loss_weight['dfl'] * loss_dfl).unsqueeze(0),
-                         (self.loss_weight['class'] * loss_cls).unsqueeze(0))).detach()
-     
+            torch.cat(((self.loss_weight['iou'] * loss_iou).unsqueeze(0),
+                       (self.loss_weight['dfl'] * loss_dfl).unsqueeze(0),
+                       (self.loss_weight['class'] * loss_cls).unsqueeze(0))).detach()
+
     def preprocess(self, targets, batch_size, scale_tensor):
-        targets_list = np.zeros((batch_size, 1, 5)).tolist() 
+        targets_list = np.zeros((batch_size, 1, 5)).tolist()
         for i, item in enumerate(targets.cpu().numpy().tolist()):
             targets_list[int(item[0])].append(item[1:])
         max_len = max((len(l) for l in targets_list))
-        targets = torch.from_numpy(np.array(list(map(lambda l:l + [[-1,0,0,0,0]]*(max_len - len(l)), targets_list)))[:,1:,:]).to(targets.device)
+        targets = torch.from_numpy(
+            np.array(list(map(lambda l: l + [[-1, 0, 0, 0, 0]] * (max_len - len(l)), targets_list)))[:, 1:, :]).to(
+            targets.device)
         batch_target = targets[:, :, 1:5].mul_(scale_tensor)
         targets[..., 1:] = xywh2xyxy(batch_target)
         return targets
-        
+
     def bbox_decode(self, anchor_points, pred_dist):
         if self.use_dfl:
             batch_size, n_anchors, _ = pred_dist.shape
-            pred_dist = F.softmax(pred_dist.view(batch_size, n_anchors, 4, self.reg_max + 1), dim=-1).matmul(self.proj.to(pred_dist.device))
+            pred_dist = F.softmax(pred_dist.view(batch_size, n_anchors, 4, self.reg_max + 1), dim=-1).matmul(
+                self.proj.to(pred_dist.device))
         return dist2bbox(pred_dist, anchor_points)
 
 
@@ -137,8 +142,7 @@ class VarifocalLoss(nn.Module):
     def __init__(self):
         super(VarifocalLoss, self).__init__()
 
-    def forward(self, pred_score,gt_score, label, alpha=0.75, gamma=2.0):
-
+    def forward(self, pred_score, gt_score, label, alpha=0.75, gamma=2.0):
         weight = alpha * pred_score.pow(gamma) * (1 - label) + gt_score * label
         with torch.cuda.amp.autocast(enabled=False):
             loss = (F.binary_cross_entropy(pred_score.float(), gt_score.float(), reduction='none') * weight).sum()
@@ -156,7 +160,7 @@ class BboxLoss(nn.Module):
 
     def forward(self, pred_dist, pred_bboxes, anchor_points,
                 target_bboxes, target_scores, target_scores_sum, fg_mask):
-        
+
         # select positive samples mask
         num_pos = fg_mask.sum()
         if num_pos > 0:
@@ -171,7 +175,7 @@ class BboxLoss(nn.Module):
             loss_iou = self.iou_loss(pred_bboxes_pos,
                                      target_bboxes_pos) * bbox_weight
             loss_iou = loss_iou.sum() / target_scores_sum
-            
+
             # dfl loss
             if self.use_dfl:
                 dist_mask = fg_mask.unsqueeze(-1).repeat(
@@ -182,7 +186,7 @@ class BboxLoss(nn.Module):
                 target_ltrb_pos = torch.masked_select(
                     target_ltrb, bbox_mask).reshape([-1, 4])
                 loss_dfl = self._df_loss(pred_dist_pos,
-                                        target_ltrb_pos) * bbox_weight
+                                         target_ltrb_pos) * bbox_weight
                 loss_dfl = loss_dfl.sum() / target_scores_sum
             else:
                 loss_dfl = torch.tensor(0.).to(pred_dist.device)
@@ -205,4 +209,3 @@ class BboxLoss(nn.Module):
             pred_dist.view(-1, self.reg_max + 1), target_right.view(-1), reduction='none').view(
             target_left.shape) * weight_right
         return (loss_left + loss_right).mean(-1, keepdim=True)
-

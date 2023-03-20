@@ -1,5 +1,16 @@
 #!/usr/bin/env python3
 # -*- coding:utf-8 -*-
+from yolov6.data.data_load import create_dataloader
+from yolov6.models.yolo import build_model
+from yolov6.models.loss import ComputeLoss
+from yolov6.models.loss_distill import ComputeLoss as ComputeLoss_distill
+from yolov6.utils.events import LOGGER, NCOLS, load_yaml, write_tblog, write_tbimg
+from yolov6.utils.ema import ModelEMA, de_parallel
+from yolov6.utils.checkpoint import load_state_dict, save_checkpoint, strip_optimizer
+from yolov6.solver.build import build_optimizer, build_lr_scheduler
+from yolov6.utils.RepOptimizer import extract_scales, RepVGGOptimizer
+from yolov6.utils.nms import xywh2xyxy
+
 import os
 import time
 from copy import deepcopy
@@ -16,16 +27,6 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.tensorboard import SummaryWriter
 
 import tools.eval as eval
-from yolov6.data.data_load import create_dataloader
-from yolov6.models.yolo import build_model
-from yolov6.models.loss import ComputeLoss
-from yolov6.models.loss_distill import ComputeLoss as ComputeLoss_distill
-from yolov6.utils.events import LOGGER, NCOLS, load_yaml, write_tblog, write_tbimg
-from yolov6.utils.ema import ModelEMA, de_parallel
-from yolov6.utils.checkpoint import load_state_dict, save_checkpoint, strip_optimizer
-from yolov6.solver.build import build_optimizer, build_lr_scheduler
-from yolov6.utils.RepOptimizer import extract_scales, RepVGGOptimizer
-from yolov6.utils.nms import xywh2xyxy
 
 
 class Trainer:
@@ -63,7 +64,7 @@ class Trainer:
         # tensorboard
         self.tblogger = SummaryWriter(self.save_dir) if self.main_process else None
         self.start_epoch = 0
-        #resume
+        # resume
         if hasattr(self, "ckpt"):
             resume_state_dict = self.ckpt['model'].float().state_dict()  # checkpoint state_dict as FP32
             model.load_state_dict(resume_state_dict, strict=True)  # load
@@ -84,7 +85,6 @@ class Trainer:
         # set color for classnames
         self.color = [tuple(np.random.choice(range(256), size=3)) for _ in range(self.model.nc)]
 
-
         self.loss_num = 3
         self.loss_info = ['Epoch', 'iou_loss', 'dfl_loss', 'cls_loss']
         if self.args.distill:
@@ -98,7 +98,7 @@ class Trainer:
             for self.epoch in range(self.start_epoch, self.max_epoch):
                 self.train_in_loop(self.epoch)
 
-        except Exception as _:
+        except Exception:
             LOGGER.error('ERROR in training loop or eval/save model.')
             raise
         finally:
@@ -111,12 +111,12 @@ class Trainer:
             for self.step, self.batch_data in self.pbar:
                 self.train_in_steps(epoch_num)
                 self.print_details()
-        except Exception as _:
+        except Exception:
             LOGGER.error('ERROR in training steps.')
             raise
         try:
             self.eval_and_save()
-        except Exception as _:
+        except Exception:
             LOGGER.error('ERROR in evaluate and save model.')
             raise
 
@@ -151,86 +151,86 @@ class Trainer:
         eval_interval = self.args.eval_interval if remaining_epochs > self.args.heavy_eval_range else 1
         is_val_epoch = (not self.args.eval_final_only or (remaining_epochs == 1)) and (self.epoch % eval_interval == 0)
         if self.main_process:
-            self.ema.update_attr(self.model, include=['nc', 'names', 'stride']) # update attributes for ema model
+            self.ema.update_attr(self.model, include=['nc', 'names', 'stride'])  # update attributes for ema model
             if is_val_epoch:
                 self.eval_model()
                 self.ap = self.evaluate_results[1]
                 self.best_ap = max(self.ap, self.best_ap)
             # save ckpt
             ckpt = {
-                    'model': deepcopy(de_parallel(self.model)).half(),
-                    'ema': deepcopy(self.ema.ema).half(),
-                    'updates': self.ema.updates,
-                    'optimizer': self.optimizer.state_dict(),
-                    'epoch': self.epoch,
-                    }
+                'model': deepcopy(de_parallel(self.model)).half(),
+                'ema': deepcopy(self.ema.ema).half(),
+                'updates': self.ema.updates,
+                'optimizer': self.optimizer.state_dict(),
+                'epoch': self.epoch,
+            }
 
             save_ckpt_dir = osp.join(self.save_dir, 'weights')
             save_checkpoint(ckpt, (is_val_epoch) and (self.ap == self.best_ap), save_ckpt_dir, model_name='last_ckpt')
             if self.epoch >= self.max_epoch - self.args.save_ckpt_on_last_n_epoch:
                 save_checkpoint(ckpt, False, save_ckpt_dir, model_name=f'{self.epoch}_ckpt')
 
-            #default save best ap ckpt in stop strong aug epochs
+            # default save best ap ckpt in stop strong aug epochs
             if self.epoch >= self.max_epoch - self.args.stop_aug_last_n_epoch:
                 if self.best_stop_strong_aug_ap < self.ap:
                     self.best_stop_strong_aug_ap = max(self.ap, self.best_stop_strong_aug_ap)
                     save_checkpoint(ckpt, False, save_ckpt_dir, model_name='best_stop_aug_ckpt')
-                
+
             del ckpt
             # log for learning rate
-            lr = [x['lr'] for x in self.optimizer.param_groups] 
+            lr = [x['lr'] for x in self.optimizer.param_groups]
             self.evaluate_results = list(self.evaluate_results) + lr
-            
+
             # log for tensorboard
             write_tblog(self.tblogger, self.epoch, self.evaluate_results, self.mean_loss)
             # save validation predictions to tensorboard
             write_tbimg(self.tblogger, self.vis_imgs_list, self.epoch, type='val')
-            
+
     def eval_model(self):
         results, vis_outputs, vis_paths = eval.run(self.data_dict,
-                           batch_size=self.batch_size // self.world_size * 2,
-                           img_size=self.img_size,
-                           model=self.ema.ema if self.args.calib is False else self.model,
-                           conf_thres=0.03,
-                           dataloader=self.val_loader,
-                           save_dir=self.save_dir,
-                           task='train')
+                                                   batch_size=self.batch_size // self.world_size * 2,
+                                                   img_size=self.img_size,
+                                                   model=self.ema.ema if self.args.calib is False else self.model,
+                                                   conf_thres=0.03,
+                                                   dataloader=self.val_loader,
+                                                   save_dir=self.save_dir,
+                                                   task='train')
 
         LOGGER.info(f"Epoch: {self.epoch} | mAP@0.5: {results[0]} | mAP@0.50:0.95: {results[1]}")
         self.evaluate_results = results[:2]
         # plot validation predictions
         self.plot_val_pred(vis_outputs, vis_paths)
 
-
     def train_before_loop(self):
         LOGGER.info('Training start...')
         self.start_time = time.time()
-        self.warmup_stepnum = max(round(self.cfg.solver.warmup_epochs * self.max_stepnum), 1000) if self.args.quant is False else 0
+        self.warmup_stepnum = max(round(self.cfg.solver.warmup_epochs * self.max_stepnum),
+                                  1000) if self.args.quant is False else 0
         self.scheduler.last_epoch = self.start_epoch - 1
         self.last_opt_step = -1
         self.scaler = amp.GradScaler(enabled=self.device != 'cpu')
 
         self.best_ap, self.ap = 0.0, 0.0
         self.best_stop_strong_aug_ap = 0.0
-        self.evaluate_results = (0, 0) # AP50, AP50_95
+        self.evaluate_results = (0, 0)  # AP50, AP50_95
         self.compute_loss = ComputeLoss(num_classes=self.data_dict['nc'],
                                         ori_img_size=self.img_size,
                                         use_dfl=self.cfg.model.head.use_dfl,
                                         reg_max=self.cfg.model.head.reg_max,
                                         iou_type=self.cfg.model.head.iou_type)
         self.compute_loss_distill = ComputeLoss_distill(num_classes=self.data_dict['nc'],
-                                        ori_img_size=self.img_size,
-                                        use_dfl=self.cfg.model.head.use_dfl,
-                                        reg_max=self.cfg.model.head.reg_max,
-                                        iou_type=self.cfg.model.head.iou_type,
-                                        distill_weight = self.cfg.model.head.distill_weight,
-                                        distill_feat = self.args.distill_feat,
-                                        )
+                                                        ori_img_size=self.img_size,
+                                                        use_dfl=self.cfg.model.head.use_dfl,
+                                                        reg_max=self.cfg.model.head.reg_max,
+                                                        iou_type=self.cfg.model.head.iou_type,
+                                                        distill_weight=self.cfg.model.head.distill_weight,
+                                                        distill_feat=self.args.distill_feat,
+                                                        )
 
     def prepare_for_steps(self):
         if self.epoch > self.start_epoch:
             self.scheduler.step()
-        #stop strong aug like mosaic and mixup from last n epoch by recreate dataloader
+        # stop strong aug like mosaic and mixup from last n epoch by recreate dataloader
         if self.epoch == self.max_epoch - self.args.stop_aug_last_n_epoch:
             self.cfg.data_aug.mosaic = 0.0
             self.cfg.data_aug.mixup = 0.0
@@ -244,14 +244,15 @@ class Trainer:
         LOGGER.info(('\n' + '%10s' * (self.loss_num + 1)) % (*self.loss_info,))
         self.pbar = enumerate(self.train_loader)
         if self.main_process:
-            self.pbar = tqdm(self.pbar, total=self.max_stepnum, ncols=NCOLS, bar_format='{l_bar}{bar:10}{r_bar}{bar:-10b}')
+            self.pbar = tqdm(self.pbar, total=self.max_stepnum, ncols=NCOLS,
+                             bar_format='{l_bar}{bar:10}{r_bar}{bar:-10b}')
 
     # Print loss after each steps
     def print_details(self):
         if self.main_process:
             self.mean_loss = (self.mean_loss * self.step + self.loss_items) / (self.step + 1)
             self.pbar.set_description(('%10s' + '%10.4g' * self.loss_num) % (f'{self.epoch}/{self.max_epoch - 1}', \
-                                                                *(self.mean_loss)))
+                                                                             *(self.mean_loss)))
 
     # Empty cache if training finished
     def train_after_loop(self):
@@ -269,9 +270,11 @@ class Trainer:
             self.accumulate = max(1, np.interp(curr_step, [0, self.warmup_stepnum], [1, 64 / self.batch_size]).round())
             for k, param in enumerate(self.optimizer.param_groups):
                 warmup_bias_lr = self.cfg.solver.warmup_bias_lr if k == 2 else 0.0
-                param['lr'] = np.interp(curr_step, [0, self.warmup_stepnum], [warmup_bias_lr, param['initial_lr'] * self.lf(self.epoch)])
+                param['lr'] = np.interp(curr_step, [0, self.warmup_stepnum],
+                                        [warmup_bias_lr, param['initial_lr'] * self.lf(self.epoch)])
                 if 'momentum' in param:
-                    param['momentum'] = np.interp(curr_step, [0, self.warmup_stepnum], [self.cfg.solver.warmup_momentum, self.cfg.solver.momentum])
+                    param['momentum'] = np.interp(curr_step, [0, self.warmup_stepnum],
+                                                  [self.cfg.solver.warmup_momentum, self.cfg.solver.momentum])
         if curr_step - self.last_opt_step >= self.accumulate:
             self.scaler.step(self.optimizer)
             self.scaler.update()
@@ -286,7 +289,7 @@ class Trainer:
         # check data
         nc = int(data_dict['nc'])
         class_names = data_dict['names']
-        assert len(class_names) == nc, f'the length of class names does not match the number of classes defined'
+        assert len(class_names) == nc, 'the length of class names does not match the number of classes defined'
         grid_size = max(int(max(cfg.model.head.strides)), 32)
         # create train dataloader
         train_loader = create_dataloader(train_path, args.img_size, args.batch_size // args.world_size, grid_size,
@@ -318,8 +321,8 @@ class Trainer:
 
         LOGGER.info('Model: {}'.format(model))
         return model
-        
-    def get_teacher_model(self, args,cfg,nc, device):
+
+    def get_teacher_model(self, args, cfg, nc, device):
         model = build_model(cfg, nc, device)
         weights = args.teacher_model_path
         if weights:  # finetune if pretrained model is set
@@ -342,7 +345,6 @@ class Trainer:
             ckpt = torch.load(weights, map_location=device)
             scales = extract_scales(ckpt)
         return scales
-
 
     @staticmethod
     def parallel_model(args, model, device):
@@ -423,14 +425,15 @@ class Trainer:
                     if labels:
                         label = f'{cls}'
                         cv2.rectangle(mosaic, (box[0], box[1]), (box[2], box[3]), color, thickness=1)
-                        cv2.putText(mosaic, label, (box[0], box[1] - 5), cv2.FONT_HERSHEY_COMPLEX, 0.5, color, thickness=1)
+                        cv2.putText(mosaic, label, (box[0], box[1] - 5), cv2.FONT_HERSHEY_COMPLEX, 0.5, color,
+                                    thickness=1)
         self.vis_train_batch = mosaic.copy()
 
     def plot_val_pred(self, vis_outputs, vis_paths, vis_conf=0.3, vis_max_box_num=5):
         # plot validation predictions
         self.vis_imgs_list = []
         for (vis_output, vis_path) in zip(vis_outputs, vis_paths):
-            vis_output_array = vis_output.cpu().numpy()     # xyxy
+            vis_output_array = vis_output.cpu().numpy()  # xyxy
             ori_img = cv2.imread(vis_path)
             for bbox_idx, vis_bbox in enumerate(vis_output_array):
                 x_tl = int(vis_bbox[0])
@@ -442,23 +445,26 @@ class Trainer:
                 # draw top n bbox
                 if box_score < vis_conf or bbox_idx > vis_max_box_num:
                     break
-                cv2.rectangle(ori_img, (x_tl, y_tl), (x_br, y_br), tuple([int(x) for x in self.color[cls_id]]), thickness=1)
-                cv2.putText(ori_img, f"{self.data_dict['names'][cls_id]}: {box_score:.2f}", (x_tl, y_tl - 10), cv2.FONT_HERSHEY_COMPLEX, 0.5, tuple([int(x) for x in self.color[cls_id]]), thickness=1)
+                cv2.rectangle(ori_img, (x_tl, y_tl), (x_br, y_br), tuple([int(x) for x in self.color[cls_id]]),
+                              thickness=1)
+                cv2.putText(ori_img, f"{self.data_dict['names'][cls_id]}: {box_score:.2f}", (x_tl, y_tl - 10),
+                            cv2.FONT_HERSHEY_COMPLEX, 0.5, tuple([int(x) for x in self.color[cls_id]]), thickness=1)
             self.vis_imgs_list.append(torch.from_numpy(ori_img[:, :, ::-1].copy()))
-
 
     # PTQ
     def calibrate(self, cfg):
         def save_calib_model(model, cfg):
             # Save calibrated checkpoint
             output_model_path = os.path.join(cfg.ptq.calib_output_path, '{}_calib_{}.pt'.
-                                             format(os.path.splitext(os.path.basename(cfg.model.pretrained))[0], cfg.ptq.calib_method))
+                                             format(os.path.splitext(os.path.basename(cfg.model.pretrained))[0],
+                                                    cfg.ptq.calib_method))
             if cfg.ptq.sensitive_layers_skip is True:
                 output_model_path = output_model_path.replace('.pt', '_partial.pt')
             LOGGER.info('Saving calibrated model to {}... '.format(output_model_path))
             if not os.path.exists(cfg.ptq.calib_output_path):
                 os.mkdir(cfg.ptq.calib_output_path)
             torch.save({'model': deepcopy(de_parallel(model)).half()}, output_model_path)
+
         assert self.args.quant is True and self.args.calib is True
         if self.main_process:
             from tools.qat.qat_utils import ptq_calibrate
@@ -466,6 +472,7 @@ class Trainer:
             self.epoch = 0
             self.eval_model()
             save_calib_model(self.model, cfg)
+
     # QAT
     def quant_setup(self, model, cfg, device):
         if self.args.quant:

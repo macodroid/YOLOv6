@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 # -*- coding:utf-8 -*-
-import math
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
 from yolov6.layers.common import *
 from yolov6.utils.torch_utils import initialize_weights
 from yolov6.models.efficientrep import *
 from yolov6.models.reppan import *
 from yolov6.models.effidehead import Detect, build_effidehead_layer
+
+import math
+import torch
+import torch.nn as nn
 
 
 class Model(nn.Module):
@@ -16,11 +16,12 @@ class Model(nn.Module):
     The default parts are EfficientRep Backbone, Rep-PAN and
     Efficient Decoupled Head.
     '''
+
     def __init__(self, config, channels=3, num_classes=None, anchors=None):  # model, input channels, number of classes
         super().__init__()
         # Build network
         num_layers = config.model.head.num_layers
-        #self.mode = config.training_mode
+        # self.mode = config.training_mode
         self.backbone, self.neck, self.detect = build_network(config, channels, num_classes, anchors, num_layers)
 
         # Init Detect head
@@ -38,7 +39,7 @@ class Model(nn.Module):
         export_mode = torch.onnx.is_in_onnx_export()
         x = self.backbone(x)
         x = self.neck(x)
-        if export_mode == False:
+        if export_mode is False:
             featmaps = []
             featmaps.extend(x)
         x = self.detect(x)
@@ -72,7 +73,7 @@ def build_network(config, channels, num_classes, anchors, num_layers):
     block = get_block(config.training_mode)
     BACKBONE = eval(config.model.backbone.type)
     NECK = eval(config.model.neck.type)
-    
+
     if 'CSP' in config.model.backbone.type:
         backbone = BACKBONE(
             in_channels=channels,

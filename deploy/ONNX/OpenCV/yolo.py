@@ -92,7 +92,7 @@ def post_process(input_image, outputs):
 				box = np.array([left, top, width, height])
 				boxes.append(box)
 
-	# Perform non maximum suppression to eliminate redundant overlapping boxes with
+	# Perform non-maximum suppression to eliminate redundant overlapping boxes with
 	# lower confidences.
 	indices = cv2.dnn.NMSBoxes(boxes, confidences, CONFIDENCE_THRESHOLD, NMS_THRESHOLD)
 	for i in indices:

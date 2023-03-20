@@ -1,5 +1,6 @@
 import math
-
+import torch.nn as nn
+import torch
 import torch.nn.functional as F
 
 from yolov6.assigners.anchor_generator import generate_anchors
@@ -47,14 +48,14 @@ class Detect(nn.Module):
 
         # Efficient decoupled head layers
         for i in range(num_layers):
-            idx = i * 5
+            idx = i * 7
             self.stems.append(head_layers[idx])
             self.cls_convs.append(head_layers[idx + 1])
             self.reg_convs.append(head_layers[idx + 2])
-            self.centers_convs.append(head_layers[idx + 2])
-            self.cls_preds.append(head_layers[idx + 3])
-            self.reg_preds.append(head_layers[idx + 4])
-            self.centers_preds.append(head_layers[idx + 4])
+            self.centers_convs.append(head_layers[idx + 3])
+            self.cls_preds.append(head_layers[idx + 4])
+            self.reg_preds.append(head_layers[idx + 5])
+            self.centers_preds.append(head_layers[idx + 6])
 
     def initialize_biases(self):
 
