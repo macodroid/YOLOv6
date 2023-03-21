@@ -132,11 +132,12 @@ class Trainer:
         with amp.autocast(enabled=self.device != 'cpu'):
             preds, s_featmaps = self.model(images)
             if self.args.distill:
-                with torch.no_grad():
-                    t_preds, t_featmaps = self.teacher_model(images)
-                temperature = self.args.temperature
-                total_loss, loss_items = self.compute_loss_distill(preds, t_preds, s_featmaps, t_featmaps, targets, \
-                                                                   epoch_num, self.max_epoch, temperature)
+                raise Exception("For now, distillation is not supported.")
+                # with torch.no_grad():
+                #     t_preds, t_featmaps = self.teacher_model(images)
+                # temperature = self.args.temperature
+                # total_loss, loss_items = self.compute_loss_distill(preds, t_preds, s_featmaps, t_featmaps, targets, \
+                #                                                    epoch_num, self.max_epoch, temperature)
             else:
                 total_loss, loss_items = self.compute_loss(preds, targets, epoch_num)
             if self.rank != -1:
@@ -218,14 +219,14 @@ class Trainer:
                                         use_dfl=self.cfg.model.head.use_dfl,
                                         reg_max=self.cfg.model.head.reg_max,
                                         iou_type=self.cfg.model.head.iou_type)
-        self.compute_loss_distill = ComputeLoss_distill(num_classes=self.data_dict['nc'],
-                                                        ori_img_size=self.img_size,
-                                                        use_dfl=self.cfg.model.head.use_dfl,
-                                                        reg_max=self.cfg.model.head.reg_max,
-                                                        iou_type=self.cfg.model.head.iou_type,
-                                                        distill_weight=self.cfg.model.head.distill_weight,
-                                                        distill_feat=self.args.distill_feat,
-                                                        )
+        # self.compute_loss_distill = ComputeLoss_distill(num_classes=self.data_dict['nc'],
+        #                                                 ori_img_size=self.img_size,
+        #                                                 use_dfl=self.cfg.model.head.use_dfl,
+        #                                                 reg_max=self.cfg.model.head.reg_max,
+        #                                                 iou_type=self.cfg.model.head.iou_type,
+        #                                                 distill_weight=self.cfg.model.head.distill_weight,
+        #                                                 distill_feat=self.args.distill_feat,
+        #                                                 )
 
     def prepare_for_steps(self):
         if self.epoch > self.start_epoch:

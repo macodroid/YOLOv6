@@ -56,7 +56,7 @@ class ComputeLoss:
             epoch_num
     ):
 
-        feats, pred_scores, pred_distri = outputs
+        feats, pred_scores, pred_distri, centers_pred = outputs
         anchors, anchor_points, n_anchors_list, stride_tensor = \
             generate_anchors(feats, self.fpn_strides, self.grid_cell_size, self.grid_cell_offset,
                              device=feats[0].device)
@@ -68,7 +68,10 @@ class ComputeLoss:
         # targets
         targets = self.preprocess(targets, batch_size, gt_bboxes_scale)
         gt_labels = targets[:, :, :1]
-        gt_bboxes = targets[:, :, 1:]  # xyxy
+        gt_bboxes = targets[:, :, 1:5]  # xyxy
+        # TODO: come up with way how to calculate loss for centers.
+        # For now, predicted centers are in shape [batch_size, num_anchors, output (1)]
+        gt_centers = targets[:, :, -1]
         mask_gt = (gt_bboxes.sum(-1, keepdim=True) > 0).float()
 
         # pboxes
@@ -119,7 +122,7 @@ class ComputeLoss:
                        (self.loss_weight['class'] * loss_cls).unsqueeze(0))).detach()
 
     def preprocess(self, targets, batch_size, scale_tensor):
-        targets_list = np.zeros((batch_size, 1, 5)).tolist()
+        targets_list = np.zeros((batch_size, 1, 6)).tolist()
         for i, item in enumerate(targets.cpu().numpy().tolist()):
             targets_list[int(item[0])].append(item[1:])
         max_len = max((len(l) for l in targets_list))
@@ -127,7 +130,7 @@ class ComputeLoss:
             np.array(list(map(lambda l: l + [[-1, 0, 0, 0, 0]] * (max_len - len(l)), targets_list)))[:, 1:, :]).to(
             targets.device)
         batch_target = targets[:, :, 1:5].mul_(scale_tensor)
-        targets[..., 1:] = xywh2xyxy(batch_target)
+        targets[..., 1:5] = xywh2xyxy(batch_target)
         return targets
 
     def bbox_decode(self, anchor_points, pred_dist):

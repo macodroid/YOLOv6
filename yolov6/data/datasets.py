@@ -165,8 +165,7 @@ class TrainValDataset(Dataset):
 
         if self.augment:
             img, labels = self.general_augment(img, labels)
-
-        labels_out = torch.zeros((len(labels), 6))
+        labels_out = torch.zeros((len(labels), 7))
         if len(labels):
             labels_out[:, 1:] = torch.from_numpy(labels)
 

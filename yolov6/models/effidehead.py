@@ -109,11 +109,12 @@ class Detect(nn.Module):
                 cls_output = torch.sigmoid(cls_output)
                 cls_score_list.append(cls_output.flatten(2).permute((0, 2, 1)))
                 reg_distri_list.append(reg_output.flatten(2).permute((0, 2, 1)))
+                # TODO: add sigmoid to centers
                 centers_list.append(centers_output.flatten(2).permute((0, 2, 1)))
 
-            cls_score_list = torch.cat(cls_score_list, axis=1)
-            reg_distri_list = torch.cat(reg_distri_list, axis=1)
-            centers_list = torch.cat(centers_list, axis=1)
+            cls_score_list = torch.cat(cls_score_list, dim=1)
+            reg_distri_list = torch.cat(reg_distri_list, dim=1)
+            centers_list = torch.cat(centers_list, dim=1)
 
             return x, cls_score_list, reg_distri_list, centers_list
         else:
@@ -300,7 +301,7 @@ def build_effidehead_layer(channels_list, num_anchors, num_classes, reg_max=16):
         # centers_pred2
         nn.Conv2d(
             in_channels=channels_list[10],
-            out_channels=4 * (reg_max + num_anchors),
+            out_channels=1,
             kernel_size=1
         )
     )

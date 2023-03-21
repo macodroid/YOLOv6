@@ -13,7 +13,7 @@ from yolov6.assigners.tal_assigner import TaskAlignedAssigner
 
 
 class ComputeLoss:
-    '''Loss computation func.'''
+    """Loss computation func."""
     def __init__(self, 
                  fpn_strides=[8, 16, 32],
                  grid_cell_size=5.0,
