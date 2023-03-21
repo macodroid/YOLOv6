@@ -86,7 +86,13 @@ class Detect(nn.Module):
         self.proj = nn.Parameter(torch.linspace(0, self.reg_max, self.reg_max + 1), requires_grad=False)
         self.proj_conv.weight = nn.Parameter(self.proj.view([1, self.reg_max + 1, 1, 1]).clone().detach(),
                                              requires_grad=False)
-
+    # layer0:
+    # stem [1,32, 80, 80]
+    # layer1:
+    # stem [1,64, 40, 40]
+    # layer2:
+    # stem [1,128, 20, 20]
+    # final centers are [1,8400,1]
     def forward(self, x):
         if self.training:
             cls_score_list = []
