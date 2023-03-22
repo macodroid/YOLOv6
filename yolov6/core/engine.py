@@ -109,6 +109,7 @@ class Trainer:
         try:
             self.prepare_for_steps()
             for self.step, self.batch_data in self.pbar:
+                # TODO FIX for file s6r_172150 labels are empty
                 self.train_in_steps(epoch_num)
                 self.print_details()
         except Exception:
