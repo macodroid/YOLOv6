@@ -122,13 +122,13 @@ class ComputeLoss:
         loss = self.loss_weight['class'] * loss_cls + \
                self.loss_weight['iou'] * loss_iou + \
                self.loss_weight['dfl'] * loss_dfl + \
-               self.loss_weight['center'] * centers_loss
+               self.loss_weight['center'] * loss_centers
 
         return loss, \
             torch.cat(((self.loss_weight['iou'] * loss_iou).unsqueeze(0),
                        (self.loss_weight['dfl'] * loss_dfl).unsqueeze(0),
                        (self.loss_weight['class'] * loss_cls).unsqueeze(0),
-                       (self.loss_weight['centers'] * loss_centers).unsqueeze(0))).detach()
+                       (self.loss_weight['center'] * loss_centers).unsqueeze(0))).detach()
 
     def preprocess(self, targets, batch_size, scale_tensor):
         targets_list = np.zeros((batch_size, 1, 6)).tolist()
