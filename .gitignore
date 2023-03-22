@@ -115,4 +115,3 @@ venv.bak/
 *.onnx
 *.pt
 *.engine
-data/bcs_dataset
