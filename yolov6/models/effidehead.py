@@ -1,6 +1,5 @@
 import math
-import torch.nn as nn
-import torch
+
 import torch.nn.functional as F
 
 from yolov6.assigners.anchor_generator import generate_anchors
@@ -86,13 +85,7 @@ class Detect(nn.Module):
         self.proj = nn.Parameter(torch.linspace(0, self.reg_max, self.reg_max + 1), requires_grad=False)
         self.proj_conv.weight = nn.Parameter(self.proj.view([1, self.reg_max + 1, 1, 1]).clone().detach(),
                                              requires_grad=False)
-    # layer0:
-    # stem [1,32, 80, 80]
-    # layer1:
-    # stem [1,64, 40, 40]
-    # layer2:
-    # stem [1,128, 20, 20]
-    # final centers are [1,8400,1]
+
     def forward(self, x):
         if self.training:
             cls_score_list = []
@@ -115,7 +108,7 @@ class Detect(nn.Module):
                 cls_output = torch.sigmoid(cls_output)
                 cls_score_list.append(cls_output.flatten(2).permute((0, 2, 1)))
                 reg_distri_list.append(reg_output.flatten(2).permute((0, 2, 1)))
-                # TODO: add sigmoid to centers
+                # centers
                 centers_list.append(centers_output.flatten(2).permute((0, 2, 1)))
 
             cls_score_list = torch.cat(cls_score_list, dim=1)

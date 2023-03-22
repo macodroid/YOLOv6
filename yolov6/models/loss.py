@@ -1,15 +1,16 @@
 #!/usr/bin/env python3
 # -*- coding:utf-8 -*-
 
+import numpy as np
 import torch
 import torch.nn as nn
-import numpy as np
 import torch.nn.functional as F
+
 from yolov6.assigners.anchor_generator import generate_anchors
-from yolov6.utils.general import dist2bbox, bbox2dist, xywh2xyxy
-from yolov6.utils.figure_iou import IOUloss
 from yolov6.assigners.atss_assigner import ATSSAssigner
 from yolov6.assigners.tal_assigner import TaskAlignedAssigner
+from yolov6.utils.figure_iou import IOUloss
+from yolov6.utils.general import dist2bbox, bbox2dist, xywh2xyxy
 
 
 class ComputeLoss:
@@ -28,7 +29,8 @@ class ComputeLoss:
                  loss_weight={
                      'class': 1.0,
                      'iou': 2.5,
-                     'dfl': 0.5}
+                     'dfl': 0.5,
+                     'center': 1.0}
                  ):
 
         self.fpn_strides = fpn_strides
@@ -79,22 +81,24 @@ class ComputeLoss:
         pred_bboxes = self.bbox_decode(anchor_points_s, pred_distri)  # xyxy
 
         if epoch_num < self.warmup_epoch:
-            target_labels, target_bboxes, target_scores, fg_mask = \
+            target_labels, target_bboxes, target_centers, target_scores, fg_mask = \
                 self.warmup_assigner(
                     anchors,
                     n_anchors_list,
                     gt_labels,
                     gt_bboxes,
+                    gt_centers,
                     mask_gt,
                     pred_bboxes.detach() * stride_tensor)
         else:
-            target_labels, target_bboxes, target_scores, fg_mask = \
+            target_labels, target_bboxes, target_centers, target_scores, fg_mask = \
                 self.formal_assigner(
                     pred_scores.detach(),
                     pred_bboxes.detach() * stride_tensor,
                     anchor_points,
                     gt_labels,
                     gt_bboxes,
+                    gt_centers,
                     mask_gt)
 
         # rescale bbox
@@ -112,14 +116,19 @@ class ComputeLoss:
         loss_iou, loss_dfl = self.bbox_loss(pred_distri, pred_bboxes, anchor_points_s, target_bboxes,
                                             target_scores, target_scores_sum, fg_mask)
 
+        c_loss = nn.L1Loss()
+        loss_centers = c_loss(centers_pred, target_centers)
+
         loss = self.loss_weight['class'] * loss_cls + \
                self.loss_weight['iou'] * loss_iou + \
-               self.loss_weight['dfl'] * loss_dfl
+               self.loss_weight['dfl'] * loss_dfl + \
+               self.loss_weight['center'] * centers_loss
 
         return loss, \
             torch.cat(((self.loss_weight['iou'] * loss_iou).unsqueeze(0),
                        (self.loss_weight['dfl'] * loss_dfl).unsqueeze(0),
-                       (self.loss_weight['class'] * loss_cls).unsqueeze(0))).detach()
+                       (self.loss_weight['class'] * loss_cls).unsqueeze(0),
+                       (self.loss_weight['centers'] * loss_centers).unsqueeze(0))).detach()
 
     def preprocess(self, targets, batch_size, scale_tensor):
         targets_list = np.zeros((batch_size, 1, 6)).tolist()

@@ -1,14 +1,16 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+
 from yolov6.assigners.assigner_utils import select_candidates_in_gts, select_highest_overlaps, iou_calculator
 
+
 class TaskAlignedAssigner(nn.Module):
-    def __init__(self, 
+    def __init__(self,
                  topk=13,
-                 num_classes=80, 
-                 alpha=1.0, 
-                 beta=6.0, 
+                 num_classes=80,
+                 alpha=1.0,
+                 beta=6.0,
                  eps=1e-9):
         super(TaskAlignedAssigner, self).__init__()
         self.topk = topk
@@ -25,6 +27,7 @@ class TaskAlignedAssigner(nn.Module):
                 anc_points,
                 gt_labels,
                 gt_bboxes,
+                gt_centers,
                 mask_gt):
         """This code referenced to
            https://github.com/Nioolek/PPYOLOE_pytorch/blob/master/ppyoloe/assigner/tal_assigner.py
@@ -35,11 +38,13 @@ class TaskAlignedAssigner(nn.Module):
             anc_points (Tensor): shape(num_total_anchors, 2)
             gt_labels (Tensor): shape(bs, n_max_boxes, 1)
             gt_bboxes (Tensor): shape(bs, n_max_boxes, 4)
+            gt_centers (Tensor): shape(bs, n_max_boxes, 1)
             mask_gt (Tensor): shape(bs, n_max_boxes, 1)
         Returns:
             target_labels (Tensor): shape(bs, num_total_anchors)
             target_bboxes (Tensor): shape(bs, num_total_anchors, 4)
             target_scores (Tensor): shape(bs, num_total_anchors, num_classes)
+            target_centers (Tensor): shape(bs, num_total_anchors, 1)
             fg_mask (Tensor): shape(bs, num_total_anchors)
         """
         self.bs = pd_scores.size(0)
@@ -48,20 +53,19 @@ class TaskAlignedAssigner(nn.Module):
         if self.n_max_boxes == 0:
             device = gt_bboxes.device
             return torch.full_like(pd_scores[..., 0], self.bg_idx).to(device), \
-                   torch.zeros_like(pd_bboxes).to(device), \
-                   torch.zeros_like(pd_scores).to(device), \
-                   torch.zeros_like(pd_scores[..., 0]).to(device)
+                torch.zeros_like(pd_bboxes).to(device), \
+                torch.zeros_like(pd_scores).to(device), \
+                torch.zeros_like(pd_scores[..., 0]).to(device)
 
-        
         mask_pos, align_metric, overlaps = self.get_pos_mask(
             pd_scores, pd_bboxes, gt_labels, gt_bboxes, anc_points, mask_gt)
 
         target_gt_idx, fg_mask, mask_pos = select_highest_overlaps(
             mask_pos, overlaps, self.n_max_boxes)
-        
+
         # assigned target
-        target_labels, target_bboxes, target_scores = self.get_targets(
-            gt_labels, gt_bboxes, target_gt_idx, fg_mask)
+        target_labels, target_bboxes, target_centers, target_scores = self.get_targets(gt_labels, gt_bboxes, gt_centers,
+                                                                                       target_gt_idx, fg_mask)
 
         # normalize
         align_metric *= mask_pos
@@ -70,14 +74,14 @@ class TaskAlignedAssigner(nn.Module):
         norm_align_metric = (align_metric * pos_overlaps / (pos_align_metrics + self.eps)).max(-2)[0].unsqueeze(-1)
         target_scores = target_scores * norm_align_metric
 
-        return target_labels, target_bboxes, target_scores, fg_mask.bool()
+        return target_labels, target_bboxes, target_centers, target_scores, fg_mask.bool()
 
-    def get_pos_mask(self, 
-                     pd_scores, 
-                     pd_bboxes, 
-                     gt_labels, 
-                     gt_bboxes, 
-                     anc_points, 
+    def get_pos_mask(self,
+                     pd_scores,
+                     pd_bboxes,
+                     gt_labels,
+                     gt_bboxes,
+                     anc_points,
                      mask_gt):
 
         # get anchor_align metric
@@ -91,11 +95,11 @@ class TaskAlignedAssigner(nn.Module):
         mask_pos = mask_topk * mask_in_gts * mask_gt
 
         return mask_pos, align_metric, overlaps
-    
-    def get_box_metrics(self, 
-                        pd_scores, 
-                        pd_bboxes, 
-                        gt_labels, 
+
+    def get_box_metrics(self,
+                        pd_scores,
+                        pd_bboxes,
+                        gt_labels,
                         gt_bboxes):
 
         pd_scores = pd_scores.permute(0, 2, 1)
@@ -111,8 +115,8 @@ class TaskAlignedAssigner(nn.Module):
         return align_metric, overlaps
 
     def select_topk_candidates(self,
-                               metrics,  
-                               largest=True, 
+                               metrics,
+                               largest=True,
                                topk_mask=None):
 
         num_anchors = metrics.shape[-1]
@@ -124,28 +128,32 @@ class TaskAlignedAssigner(nn.Module):
         topk_idxs = torch.where(topk_mask, topk_idxs, torch.zeros_like(topk_idxs))
         is_in_topk = F.one_hot(topk_idxs, num_anchors).sum(axis=-2)
         is_in_topk = torch.where(is_in_topk > 1,
-            torch.zeros_like(is_in_topk), is_in_topk)
+                                 torch.zeros_like(is_in_topk), is_in_topk)
         return is_in_topk.to(metrics.dtype)
 
-    def get_targets(self, 
-                    gt_labels, 
-                    gt_bboxes, 
-                    target_gt_idx, 
+    def get_targets(self,
+                    gt_labels,
+                    gt_bboxes,
+                    gt_centers,
+                    target_gt_idx,
                     fg_mask):
-        
+
         # assigned target labels
-        batch_ind = torch.arange(end=self.bs, dtype=torch.int64, device=gt_labels.device)[...,None]
+        batch_ind = torch.arange(end=self.bs, dtype=torch.int64, device=gt_labels.device)[..., None]
         target_gt_idx = target_gt_idx + batch_ind * self.n_max_boxes
         target_labels = gt_labels.long().flatten()[target_gt_idx]
 
         # assigned target boxes
         target_bboxes = gt_bboxes.reshape([-1, 4])[target_gt_idx]
 
+        # assigned target centers
+        target_centers = gt_centers.reshape([-1, 1])[target_gt_idx]
+
         # assigned target scores       
-        target_labels[target_labels<0] = 0
+        target_labels[target_labels < 0] = 0
         target_scores = F.one_hot(target_labels, self.num_classes)
-        fg_scores_mask  = fg_mask[:, :, None].repeat(1, 1, self.num_classes)
+        fg_scores_mask = fg_mask[:, :, None].repeat(1, 1, self.num_classes)
         target_scores = torch.where(fg_scores_mask > 0, target_scores,
-                                        torch.full_like(target_scores, 0))
-        
-        return target_labels, target_bboxes, target_scores
+                                    torch.full_like(target_scores, 0))
+
+        return target_labels, target_bboxes, target_centers, target_scores
