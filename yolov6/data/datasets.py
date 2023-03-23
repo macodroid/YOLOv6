@@ -2,15 +2,14 @@
 # -*- coding:utf-8 -*-
 
 import glob
+import hashlib
+import json
 import os
 import os.path as osp
 import random
-import json
 import time
-import hashlib
-from pathlib import Path
-
 from multiprocessing.pool import Pool
+from pathlib import Path
 
 import cv2
 import numpy as np
@@ -19,6 +18,7 @@ from PIL import ExifTags, Image, ImageOps
 from torch.utils.data import Dataset
 from tqdm import tqdm
 
+from yolov6.utils.events import LOGGER
 from .data_augment import (
     augment_hsv,
     letterbox,
@@ -26,7 +26,6 @@ from .data_augment import (
     random_affine,
     mosaic_augmentation,
 )
-from yolov6.utils.events import LOGGER
 
 # Parameters
 IMG_FORMATS = ["bmp", "jpg", "jpeg", "png", "tif", "tiff", "dng", "webp", "mpo"]
@@ -89,6 +88,8 @@ class TrainValDataset(Dataset):
         # Mosaic Augmentation
         if self.augment and random.random() < self.hyp["mosaic"]:
             img, labels = self.get_mosaic(index)
+            if labels.shape[0] == 0:
+                img, labels = self.get_mosaic(index)
             shapes = None
 
             # MixUp augmentation
@@ -172,7 +173,7 @@ class TrainValDataset(Dataset):
         # Convert
         img = img.transpose((2, 0, 1))[::-1]  # HWC to CHW, BGR to RGB
         img = np.ascontiguousarray(img)
-
+        print(labels_out, '\n')
         return torch.from_numpy(img), labels_out, self.img_paths[index], shapes
 
     def load_image(self, index, force_load_size=None):

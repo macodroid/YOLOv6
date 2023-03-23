@@ -67,7 +67,9 @@ def mixup(im, labels, im2, labels2):
 
 
 def box_candidates(box1, box2, wh_thr=2, ar_thr=20, area_thr=0.1, eps=1e-16):  # box1(4,n), box2(4,n)
-    '''Compute candidate boxes: box1 before augment, box2 after augment, wh_thr (pixels), aspect_ratio_thr, area_ratio.'''
+    """
+    Compute candidate boxes: box1 before augment, box2 after augment, wh_thr (pixels), aspect_ratio_thr, area_ratio.
+    """
     w1, h1 = box1[2] - box1[0], box1[3] - box1[1]
     w2, h2 = box2[2] - box2[0], box2[3] - box2[1]
     ar = np.maximum(w2 / (h2 + eps), h2 / (w2 + eps))  # aspect ratio
@@ -76,13 +78,18 @@ def box_candidates(box1, box2, wh_thr=2, ar_thr=20, area_thr=0.1, eps=1e-16):  #
 
 def random_affine(img, labels=(), degrees=10, translate=.1, scale=.1, shear=10,
                   new_shape=(640, 640)):
-    '''Applies Random affine transformation.'''
+    """Applies Random affine transformation."""
     n = len(labels)
     height, width = new_shape
 
     M, s = get_transform_matrix(img.shape[:2], (height, width), degrees, scale, shear, translate)
     if (M != np.eye(3)).any():  # image changed
         img = cv2.warpAffine(img, M[:2], dsize=(width, height), borderValue=(114, 114, 114))
+
+    # img_copy = img.copy()
+    # plt.imshow(img_copy, cmap='gray', interpolation='bicubic')
+    # plt.xticks([]), plt.yticks([])  # to hide tick values on X and Y axis
+    # plt.show()
 
     # Transform label coordinates
     if n:
@@ -146,7 +153,7 @@ def mosaic_augmentation(img_size, imgs, hs, ws, labels, hyp):
 
     labels4 = []
     s = img_size
-    yc, xc = (int(random.uniform(s//2, 3*s//2)) for _ in range(2))  # mosaic center x, y
+    yc, xc = (int(random.uniform(s // 2, 3 * s // 2)) for _ in range(2))  # mosaic center x, y
     for i in range(len(imgs)):
         # Load image
         img, h, w = imgs[i], hs[i], ws[i]
