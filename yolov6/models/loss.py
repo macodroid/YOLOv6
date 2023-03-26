@@ -71,8 +71,6 @@ class ComputeLoss:
         targets = self.preprocess(targets, batch_size, gt_bboxes_scale)
         gt_labels = targets[:, :, :1]
         gt_bboxes = targets[:, :, 1:5]  # xyxy
-        # TODO: come up with way how to calculate loss for centers.
-        # For now, predicted centers are in shape [batch_size, num_anchors, output (1)]
         gt_centers = targets[:, :, -1]
         mask_gt = (gt_bboxes.sum(-1, keepdim=True) > 0).float()
 
@@ -136,7 +134,7 @@ class ComputeLoss:
             targets_list[int(item[0])].append(item[1:])
         max_len = max((len(l) for l in targets_list))
         targets = torch.from_numpy(
-            np.array(list(map(lambda l: l + [[-1, 0, 0, 0, 0]] * (max_len - len(l)), targets_list)))[:, 1:, :]).to(
+            np.array(list(map(lambda l: l + [[-1, 0, 0, 0, 0, 0]] * (max_len - len(l)), targets_list)))[:, 1:, :]).to(
             targets.device)
         batch_target = targets[:, :, 1:5].mul_(scale_tensor)
         targets[..., 1:5] = xywh2xyxy(batch_target)
