@@ -1,24 +1,24 @@
 #!/usr/bin/env python3
 # -*- coding:utf-8 -*-
-import os
-import cv2
-import time
 import math
-import torch
-import numpy as np
+import os
 import os.path as osp
-
-from tqdm import tqdm
-from pathlib import Path
-from PIL import ImageFont
+import time
 from collections import deque
+from pathlib import Path
 
-from yolov6.utils.events import LOGGER, load_yaml
-from yolov6.layers.common import DetectBackend
+import cv2
+import numpy as np
+import torch
+from PIL import ImageFont
+from tqdm import tqdm
+
 from yolov6.data.data_augment import letterbox
 from yolov6.data.datasets import LoadData
+from yolov6.layers.common import DetectBackend
+from yolov6.utils.events import LOGGER, load_yaml
 from yolov6.utils.nms import non_max_suppression
-from yolov6.utils.torch_utils import get_model_info
+
 
 class Inferer:
     def __init__(self, source, weights, device, yaml, img_size, half):
@@ -43,7 +43,8 @@ class Inferer:
             half = False
 
         if self.device.type != 'cpu':
-            self.model(torch.zeros(1, 3, *self.img_size).to(self.device).type_as(next(self.model.model.parameters())))  # warmup
+            self.model(torch.zeros(1, 3, *self.img_size).to(self.device).type_as(
+                next(self.model.model.parameters())))  # warmup
 
         # Load data
         self.files = LoadData(source)
@@ -61,8 +62,9 @@ class Inferer:
 
         LOGGER.info("Switch model to deploy modality.")
 
-    def infer(self, conf_thres, iou_thres, classes, agnostic_nms, max_det, save_dir, save_txt, save_img, hide_labels, hide_conf, view_img=True):
-        ''' Model Inference and results visualization '''
+    def infer(self, conf_thres, iou_thres, classes, agnostic_nms, max_det, save_dir, save_txt, save_img, hide_labels,
+              hide_conf, view_img=True):
+        """ Model Inference and results visualization """
         vid_path, vid_writer, windows = None, None, []
         fps_calculator = CalcFPS()
         for img_src, img_path, vid_cap in tqdm(self.files):
@@ -73,7 +75,8 @@ class Inferer:
                 # expand for batch dim
             t1 = time.time()
             pred_results = self.model(img)
-            det = non_max_suppression(pred_results, conf_thres, iou_thres, classes, agnostic_nms, max_det=max_det)[0]
+            det, cent = non_max_suppression(pred_results, conf_thres, iou_thres, classes, agnostic_nms, max_det=max_det)
+            det, cent = det[0], cent[0]
             t2 = time.time()
 
             # Create output files in nested dirs that mirrors the structure of the images' dirs
@@ -86,23 +89,27 @@ class Inferer:
             img_ori = img_src.copy()
 
             # check image and font
-            assert img_ori.data.contiguous, 'Image needs to be contiguous. Please apply to input images with np.ascontiguousarray(im).'
+            assert img_ori.data.contiguous, \
+                'Image needs to be contiguous. Please apply to input images with np.ascontiguousarray(im).'
             self.font_check()
 
             if len(det):
                 det[:, :4] = self.rescale(img.shape[2:], det[:, :4], img_src.shape).round()
                 for *xyxy, conf, cls in reversed(det):
                     if save_txt:  # Write to file
-                        xywh = (self.box_convert(torch.tensor(xyxy).view(1, 4)) / gn).view(-1).tolist()  # normalized xywh
+                        xywh = (self.box_convert(torch.tensor(xyxy).view(1, 4)) / gn).view(
+                            -1).tolist()  # normalized xywh
                         line = (cls, *xywh, conf)
                         with open(txt_path + '.txt', 'a') as f:
                             f.write(('%g ' * len(line)).rstrip() % line + '\n')
 
                     if save_img:
                         class_num = int(cls)  # integer class
-                        label = None if hide_labels else (self.class_names[class_num] if hide_conf else f'{self.class_names[class_num]} {conf:.2f}')
+                        label = None if hide_labels else (
+                            self.class_names[class_num] if hide_conf else f'{self.class_names[class_num]} {conf:.2f}')
 
-                        self.plot_box_and_label(img_ori, max(round(sum(img_ori.shape) / 2 * 0.003), 2), xyxy, label, color=self.generate_colors(class_num, True))
+                        self.plot_box_and_label(img_ori, max(round(sum(img_ori.shape) / 2 * 0.003), 2), xyxy, label,
+                                                color=self.generate_colors(class_num, True))
 
                 img_src = np.asarray(img_ori)
 
@@ -124,7 +131,8 @@ class Inferer:
             if view_img:
                 if img_path not in windows:
                     windows.append(img_path)
-                    cv2.namedWindow(str(img_path), cv2.WINDOW_NORMAL | cv2.WINDOW_KEEPRATIO)  # allow window resize (Linux)
+                    cv2.namedWindow(str(img_path),
+                                    cv2.WINDOW_NORMAL | cv2.WINDOW_KEEPRATIO)  # allow window resize (Linux)
                     cv2.resizeWindow(str(img_path), img_src.shape[1], img_src.shape[0])
                 cv2.imshow(str(img_path), img_src)
                 cv2.waitKey(1)  # 1 millisecond
@@ -188,7 +196,7 @@ class Inferer:
 
         if new_size != img_size:
             print(f'WARNING: --img-size {img_size} must be multiple of max stride {s}, updating to {new_size}')
-        return new_size if isinstance(img_size,list) else [new_size]*2
+        return new_size if isinstance(img_size, list) else [new_size] * 2
 
     def make_divisible(self, x, divisor):
         # Upward revision the value x to make it evenly divisible by the divisor.
@@ -196,14 +204,14 @@ class Inferer:
 
     @staticmethod
     def draw_text(
-        img,
-        text,
-        font=cv2.FONT_HERSHEY_SIMPLEX,
-        pos=(0, 0),
-        font_scale=1,
-        font_thickness=2,
-        text_color=(0, 255, 0),
-        text_color_bg=(0, 0, 0),
+            img,
+            text,
+            font=cv2.FONT_HERSHEY_SIMPLEX,
+            pos=(0, 0),
+            font_scale=1,
+            font_thickness=2,
+            text_color=(0, 255, 0),
+            text_color_bg=(0, 0, 0),
     ):
 
         offset = (5, 5)
@@ -246,7 +254,7 @@ class Inferer:
         assert osp.exists(font), f'font path not exists: {font}'
         try:
             return ImageFont.truetype(str(font) if font.exists() else font.name, size)
-        except Exception as e:  # download if missing
+        except Exception:  # download if missing
             return ImageFont.truetype(str(font), size)
 
     @staticmethod
@@ -270,6 +278,7 @@ class Inferer:
         num = len(palette)
         color = palette[int(i) % num]
         return (color[2], color[1], color[0]) if bgr else color
+
 
 class CalcFPS:
     def __init__(self, nsamples: int = 50):

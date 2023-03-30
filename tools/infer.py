@@ -2,8 +2,8 @@
 # -*- coding:utf-8 -*-
 import argparse
 import os
-import sys
 import os.path as osp
+import sys
 
 import torch
 
@@ -29,7 +29,8 @@ def get_args_parser(add_help=True):
     parser.add_argument('--save-img', action='store_false', help='save visuallized inference results.')
     parser.add_argument('--save-dir', type=str, help='directory to save predictions in. See --save-txt.')
     parser.add_argument('--view-img', action='store_true', help='show inference results')
-    parser.add_argument('--classes', nargs='+', type=int, help='filter by classes, e.g. --classes 0, or --classes 0 2 3.')
+    parser.add_argument('--classes', nargs='+', type=int,
+                        help='filter by classes, e.g. --classes 0, or --classes 0 2 3.')
     parser.add_argument('--agnostic-nms', action='store_true', help='class-agnostic NMS.')
     parser.add_argument('--project', default='runs/inference', help='save inference results to project/name.')
     parser.add_argument('--name', default='exp', help='save inference results to project/name.')
@@ -101,7 +102,8 @@ def run(weights=osp.join(ROOT, 'yolov6s.pt'),
 
     # Inference
     inferer = Inferer(source, weights, device, yaml, img_size, half)
-    inferer.infer(conf_thres, iou_thres, classes, agnostic_nms, max_det, save_dir, save_txt, save_img, hide_labels, hide_conf, view_img)
+    inferer.infer(conf_thres, iou_thres, classes, agnostic_nms, max_det, save_dir, save_txt, save_img, hide_labels,
+                  hide_conf, view_img)
 
     if save_txt or save_img:
         LOGGER.info(f"Results saved to {save_dir}")

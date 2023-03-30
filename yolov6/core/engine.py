@@ -120,7 +120,7 @@ class Trainer:
             LOGGER.error('ERROR in evaluate and save model.')
             raise
 
-    # Training loop for batchdata
+    # Training loop for batch data
     def train_in_steps(self, epoch_num):
         images, targets = self.prepro_data(self.batch_data, self.device)
         # plot train_batch and save to tensorboard once an epoch

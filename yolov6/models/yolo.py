@@ -12,10 +12,10 @@ import torch.nn as nn
 
 
 class Model(nn.Module):
-    '''YOLOv6 model with backbone, neck and head.
-    The default parts are EfficientRep Backbone, Rep-PAN and
-    Efficient Decoupled Head.
-    '''
+    """
+    YOLOv6 model with backbone, neck and head.
+    The default parts are EfficientRep Backbone, Rep-PAN and Efficient Decoupled Head.
+    """
 
     def __init__(self, config, channels=3, num_classes=None, anchors=None):  # model, input channels, number of classes
         super().__init__()

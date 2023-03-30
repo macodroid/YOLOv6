@@ -158,9 +158,8 @@ class Detect(nn.Module):
                     pred_bboxes,
                     torch.ones((b, pred_bboxes.shape[1], 1), device=pred_bboxes.device, dtype=pred_bboxes.dtype),
                     cls_score_list,
-                    centers_list
                 ],
-                axis=-1)
+                axis=-1), centers_list
 
 
 def build_effidehead_layer(channels_list, num_anchors, num_classes, reg_max=16):

@@ -30,7 +30,8 @@ class ComputeLoss:
                      'class': 1.0,
                      'iou': 2.5,
                      'dfl': 0.5,
-                     'center': 1.0}
+                     'center': 1.0},
+                 centers_loss = nn.L1Loss(),
                  ):
 
         self.fpn_strides = fpn_strides
@@ -50,6 +51,7 @@ class ComputeLoss:
         self.varifocal_loss = VarifocalLoss().cuda()
         self.bbox_loss = BboxLoss(self.num_classes, self.reg_max, self.use_dfl, self.iou_type).cuda()
         self.loss_weight = loss_weight
+        self.centers_loss = centers_loss
 
     def __call__(
             self,
@@ -114,8 +116,7 @@ class ComputeLoss:
         loss_iou, loss_dfl = self.bbox_loss(pred_distri, pred_bboxes, anchor_points_s, target_bboxes,
                                             target_scores, target_scores_sum, fg_mask)
 
-        c_loss = nn.L1Loss()
-        loss_centers = c_loss(centers_pred, target_centers)
+        loss_centers = self.centers_loss(centers_pred, target_centers)
 
         loss = self.loss_weight['class'] * loss_cls + \
                self.loss_weight['iou'] * loss_iou + \
