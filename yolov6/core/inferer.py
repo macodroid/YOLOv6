@@ -68,7 +68,7 @@ class Inferer:
         vid_path, vid_writer, windows = None, None, []
         fps_calculator = CalcFPS()
         for img_src, img_path, vid_cap in tqdm(self.files):
-            img, img_src = self.precess_image(img_src, self.img_size, self.stride, self.half)
+            img, img_src = self.process_image(img_src, self.img_size, self.stride, self.half)
             img = img.to(self.device)
             if len(img.shape) == 3:
                 img = img[None]
@@ -95,11 +95,11 @@ class Inferer:
 
             if len(det):
                 det[:, :4] = self.rescale(img.shape[2:], det[:, :4], img_src.shape).round()
-                for *xyxy, conf, cls in reversed(det):
+                for (*xyxy, conf, cls), c in zip(reversed(det), reversed(cent)):
                     if save_txt:  # Write to file
                         xywh = (self.box_convert(torch.tensor(xyxy).view(1, 4)) / gn).view(
                             -1).tolist()  # normalized xywh
-                        line = (cls, *xywh, conf)
+                        line = (cls, *xywh, conf, c)
                         with open(txt_path + '.txt', 'a') as f:
                             f.write(('%g ' * len(line)).rstrip() % line + '\n')
 
@@ -108,7 +108,7 @@ class Inferer:
                         label = None if hide_labels else (
                             self.class_names[class_num] if hide_conf else f'{self.class_names[class_num]} {conf:.2f}')
 
-                        self.plot_box_and_label(img_ori, max(round(sum(img_ori.shape) / 2 * 0.003), 2), xyxy, label,
+                        self.plot_box_and_label(img_ori, max(round(sum(img_ori.shape) / 2 * 0.003), 2), xyxy, c, label,
                                                 color=self.generate_colors(class_num, True))
 
                 img_src = np.asarray(img_ori)
@@ -157,7 +157,7 @@ class Inferer:
                     vid_writer.write(img_src)
 
     @staticmethod
-    def precess_image(img_src, img_size, stride, half):
+    def process_image(img_src, img_size, stride, half):
         '''Process image before image inference.'''
         image = letterbox(img_src, img_size, stride=stride)[0]
         # Convert
@@ -235,17 +235,19 @@ class Inferer:
         return text_size
 
     @staticmethod
-    def plot_box_and_label(image, lw, box, label='', color=(128, 128, 128), txt_color=(255, 255, 255)):
+    def plot_box_and_label(image, lw, box, y_ratio, label='', color=(128, 128, 128), txt_color=(255, 255, 255)):
         # Add one xyxy box to image with label
-        p1, p2 = (int(box[0]), int(box[1])), (int(box[2]), int(box[3]))
-        cv2.rectangle(image, p1, p2, color, thickness=lw, lineType=cv2.LINE_AA)
+        (x_min, y_min), (x_max, y_max) = (int(box[0]), int(box[1])), (int(box[2]), int(box[3]))
+        cv2.rectangle(image, (x_min, y_min), (x_max, y_max), color, thickness=lw, lineType=cv2.LINE_AA)
+        center_y = int(y_ratio * (y_max - y_min) + y_min)
+        cv2.line(image, (x_min, center_y), (x_max, center_y), color, lw, cv2.LINE_AA)
         if label:
             tf = max(lw - 1, 1)  # font thickness
             w, h = cv2.getTextSize(label, 0, fontScale=lw / 3, thickness=tf)[0]  # text width, height
-            outside = p1[1] - h - 3 >= 0  # label fits outside box
-            p2 = p1[0] + w, p1[1] - h - 3 if outside else p1[1] + h + 3
-            cv2.rectangle(image, p1, p2, color, -1, cv2.LINE_AA)  # filled
-            cv2.putText(image, label, (p1[0], p1[1] - 2 if outside else p1[1] + h + 2), 0, lw / 3, txt_color,
+            outside = y_min - h - 3 >= 0  # label fits outside box
+            p2 = x_min + w, y_min - h - 3 if outside else y_min + h + 3
+            cv2.rectangle(image, (x_min, y_min), p2, color, -1, cv2.LINE_AA)  # filled
+            cv2.putText(image, label, (x_min, y_min - 2 if outside else y_min + h + 2), 0, lw / 3, txt_color,
                         thickness=tf, lineType=cv2.LINE_AA)
 
     @staticmethod

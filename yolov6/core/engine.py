@@ -26,7 +26,7 @@ from torch.cuda import amp
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.tensorboard import SummaryWriter
 
-import tools.eval as eval
+import eval as eval
 
 
 class Trainer:

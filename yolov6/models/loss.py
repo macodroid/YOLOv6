@@ -26,6 +26,7 @@ class ComputeLoss:
                  use_dfl=True,
                  reg_max=16,
                  iou_type='giou',
+                 # TODO change loss weights tp class:
                  loss_weight={
                      'class': 1.0,
                      'iou': 2.5,
