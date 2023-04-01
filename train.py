@@ -43,7 +43,8 @@ def get_args_parser(add_help=True):
     parser.add_argument('--local_rank', type=int, default=-1, help='DDP parameter')
     parser.add_argument('--resume', nargs='?', const=True, default=False, help='resume the most recent training')
     parser.add_argument('--write_trainbatch_tb', action='store_true',
-                        help='write train_batch image to tensorboard once an epoch, may slightly slower train speed if open')
+                        help='write train_batch image to tensorboard once an epoch, '
+                             'may slightly slower train speed if open')
     parser.add_argument('--stop_aug_last_n_epoch', default=15, type=int,
                         help='stop strong aug at last n epoch, neg value not stop, default 15')
     parser.add_argument('--save_ckpt_on_last_n_epoch', default=-1, type=int,
@@ -96,7 +97,7 @@ def check_and_init(args):
 
 
 def main(args):
-    '''main function of training'''
+    """main function of training"""
     # Setup
     args.rank, args.local_rank, args.world_size = get_envs()
     cfg, device, args = check_and_init(args)

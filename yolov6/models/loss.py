@@ -26,13 +26,12 @@ class ComputeLoss:
                  use_dfl=True,
                  reg_max=16,
                  iou_type='giou',
-                 # TODO change loss weights tp class:
                  loss_weight={
-                     'class': 1.0,
-                     'iou': 2.5,
+                     'class': 0.5,
+                     'iou': 2.0,
                      'dfl': 0.5,
-                     'center': 1.0},
-                 centers_loss = nn.L1Loss(),
+                     'center': 1.5},
+                 centers_loss=nn.MSELoss(),
                  ):
 
         self.fpn_strides = fpn_strides
@@ -52,7 +51,7 @@ class ComputeLoss:
         self.varifocal_loss = VarifocalLoss().cuda()
         self.bbox_loss = BboxLoss(self.num_classes, self.reg_max, self.use_dfl, self.iou_type).cuda()
         self.loss_weight = loss_weight
-        self.centers_loss = centers_loss
+        self.centers_loss = centers_loss.cuda()
 
     def __call__(
             self,

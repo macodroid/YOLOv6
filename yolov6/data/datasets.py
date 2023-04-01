@@ -539,7 +539,7 @@ class TrainValDataset(Dataset):
             )
             if labels:
                 for label in labels:
-                    c, x, y, w, h = label[:5]
+                    c, x, y, w, h, y_ratio = label[:6]
                     # convert x,y,w,h to x1,y1,x2,y2
                     x1 = (x - w / 2) * img_w
                     y1 = (y - h / 2) * img_h
@@ -553,6 +553,7 @@ class TrainValDataset(Dataset):
                         {
                             "area": h * w,
                             "bbox": [x1, y1, w, h],
+                            "y_ratio": y_ratio,
                             "category_id": cls_id,
                             "id": ann_id,
                             "image_id": img_id,
