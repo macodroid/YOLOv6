@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding:utf-8 -*-
+from yolov6.utils.events import LOGGER
+from yolov6.core.inferer import Inferer
+from test_centery import test_centery
+
+
 import argparse
 import os
 import os.path as osp
@@ -10,9 +15,6 @@ import torch
 ROOT = os.getcwd()
 if str(ROOT) not in sys.path:
     sys.path.append(str(ROOT))
-
-from yolov6.utils.events import LOGGER
-from yolov6.core.inferer import Inferer
 
 
 def get_args_parser(add_help=True):
@@ -107,6 +109,10 @@ def run(weights=osp.join(ROOT, 'yolov6s.pt'),
 
     if save_txt or save_img:
         LOGGER.info(f"Results saved to {save_dir}")
+
+    print("Testing centery ...")
+    labes_dir = source.replace("images", "labels")
+    test_centery(labes_dir, save_dir)
 
 
 def main(args):
