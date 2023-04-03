@@ -1,6 +1,6 @@
-train: ./data/bcs_dataset/images/train
-val: ./data/bcs_dataset/images/val
-test: ./data/bcs_dataset/images/test
+train: data/bcs_dataset/images/train
+val: data/bcs_dataset/images/val
+test: data/bcs_dataset/images/test
 
 nc: 81
 
