@@ -2,16 +2,14 @@
 # -*- coding:utf-8 -*-
 
 import glob
-from io import UnsupportedOperation
+import hashlib
+import json
 import os
 import os.path as osp
 import random
-import json
 import time
-import hashlib
-from pathlib import Path
-
 from multiprocessing.pool import Pool
+from pathlib import Path
 
 import cv2
 import numpy as np
@@ -20,6 +18,7 @@ from PIL import ExifTags, Image, ImageOps
 from torch.utils.data import Dataset
 from tqdm import tqdm
 
+from yolov6.utils.events import LOGGER
 from .data_augment import (
     augment_hsv,
     letterbox,
@@ -43,21 +42,22 @@ for k, v in ExifTags.TAGS.items():
 
 class TrainValDataset(Dataset):
     '''YOLOv6 train_loader/val_loader, loads images and labels for training and validation.'''
+
     def __init__(
-        self,
-        img_dir,
-        img_size=640,
-        batch_size=16,
-        augment=False,
-        hyp=None,
-        rect=False,
-        check_images=False,
-        check_labels=False,
-        stride=32,
-        pad=0.0,
-        rank=-1,
-        data_dict=None,
-        task="train",
+            self,
+            img_dir,
+            img_size=640,
+            batch_size=16,
+            augment=False,
+            hyp=None,
+            rect=False,
+            check_images=False,
+            check_labels=False,
+            stride=32,
+            pad=0.0,
+            rank=-1,
+            data_dict=None,
+            task="train"
     ):
         assert task.lower() in ("train", "val", "test", "speed"), f"Not supported task: {task}"
         t1 = time.time()
@@ -77,7 +77,7 @@ class TrainValDataset(Dataset):
             self.sort_files_shapes()
         t2 = time.time()
         if self.main_process:
-            LOGGER.info(f"%.1fs for dataset initialization." % (t2 - t1))
+            LOGGER.info("%.1fs for dataset initialization." % (t2 - t1))
 
     def __len__(self):
         """Get the length of dataset"""
@@ -91,6 +91,8 @@ class TrainValDataset(Dataset):
         # Mosaic Augmentation
         if self.augment and random.random() < self.hyp["mosaic"]:
             img, labels = self.get_mosaic(index)
+            if labels.shape[0] == 0:
+                img, labels = self.get_mosaic(index)
             shapes = None
 
             # MixUp augmentation
@@ -114,7 +116,8 @@ class TrainValDataset(Dataset):
                 else self.img_size
             )  # final letterboxed shape
             if self.hyp and "letterbox_return_int" in self.hyp:
-                img, ratio, pad = letterbox(img, shape, auto=False, scaleup=self.augment, return_int=self.hyp["letterbox_return_int"])
+                img, ratio, pad = letterbox(img, shape, auto=False, scaleup=self.augment,
+                                            return_int=self.hyp["letterbox_return_int"])
             else:
                 img, ratio, pad = letterbox(img, shape, auto=False, scaleup=self.augment)
 
@@ -127,16 +130,16 @@ class TrainValDataset(Dataset):
                 # new boxes
                 boxes = np.copy(labels[:, 1:])
                 boxes[:, 0] = (
-                    w * (labels[:, 1] - labels[:, 3] / 2) + pad[0]
+                        w * (labels[:, 1] - labels[:, 3] / 2) + pad[0]
                 )  # top left x
                 boxes[:, 1] = (
-                    h * (labels[:, 2] - labels[:, 4] / 2) + pad[1]
+                        h * (labels[:, 2] - labels[:, 4] / 2) + pad[1]
                 )  # top left y
                 boxes[:, 2] = (
-                    w * (labels[:, 1] + labels[:, 3] / 2) + pad[0]
+                        w * (labels[:, 1] + labels[:, 3] / 2) + pad[0]
                 )  # bottom right x
                 boxes[:, 3] = (
-                    h * (labels[:, 2] + labels[:, 4] / 2) + pad[1]
+                        h * (labels[:, 2] + labels[:, 4] / 2) + pad[1]
                 )  # bottom right y
                 labels[:, 1:] = boxes
 
@@ -167,7 +170,7 @@ class TrainValDataset(Dataset):
         if self.augment:
             img, labels = self.general_augment(img, labels)
 
-        labels_out = torch.zeros((len(labels), 6))
+        labels_out = torch.zeros((len(labels), 7))
         if len(labels):
             labels_out[:, 1:] = torch.from_numpy(labels)
 
@@ -272,27 +275,25 @@ class TrainValDataset(Dataset):
         base_dir = osp.basename(img_dir)
         if base_dir != "":
             label_dir = osp.join(
-            osp.dirname(osp.dirname(img_dir)), "labels", osp.basename(img_dir)
+                osp.dirname(osp.dirname(img_dir)), "labels", osp.basename(img_dir)
             )
             assert osp.exists(label_dir), f"{label_dir} is an invalid directory path!"
         else:
-            sub_dirs= []
+            sub_dirs = []
             label_dir = img_dir
             for rootdir, dirs, files in os.walk(label_dir):
                 for subdir in dirs:
                     sub_dirs.append(subdir)
-            assert "labels" in sub_dirs, f"Could not find a labels directory!"
-
+            assert "labels" in sub_dirs, "Could not find a labels directory!"
 
         # Look for labels in the save relative dir that the images are in
         def _new_rel_path_with_ext(base_path: str, full_path: str, new_ext: str):
             rel_path = osp.relpath(full_path, base_path)
             return osp.join(osp.dirname(rel_path), osp.splitext(osp.basename(rel_path))[0] + new_ext)
 
-
         img_paths = list(img_info.keys())
         label_paths = [osp.join(label_dir, _new_rel_path_with_ext(img_dir, p, ".txt"))
-                        for p in img_paths]
+                       for p in img_paths]
         assert label_paths, f"No labels found in {label_dir}."
         label_hash = self.get_hash(label_paths)
         if "label_hash" not in cache_info or cache_info["label_hash"] != label_hash:
@@ -310,13 +311,13 @@ class TrainValDataset(Dataset):
                 )
                 pbar = tqdm(pbar, total=len(label_paths)) if self.main_process else pbar
                 for (
-                    img_path,
-                    labels_per_file,
-                    nc_per_file,
-                    nm_per_file,
-                    nf_per_file,
-                    ne_per_file,
-                    msg,
+                        img_path,
+                        labels_per_file,
+                        nc_per_file,
+                        nm_per_file,
+                        nf_per_file,
+                        ne_per_file,
+                        msg,
                 ) in pbar:
                     if nc_per_file == 0:
                         img_info[img_path]["labels"] = labels_per_file
@@ -342,8 +343,9 @@ class TrainValDataset(Dataset):
                 )
 
         if self.task.lower() == "val":
-            if self.data_dict.get("is_coco", False): # use original json file when evaluating on coco dataset.
-                assert osp.exists(self.data_dict["anno_path"]), "Eval on coco dataset must provide valid path of the annotation file in config file: data/coco.yaml"
+            if self.data_dict.get("is_coco", False):  # use original json file when evaluating on coco dataset.
+                assert osp.exists(self.data_dict[
+                                      "anno_path"]), "Eval on coco dataset must provide valid path of the annotation file in config file: data/coco.yaml"
             else:
                 assert (
                     self.class_names
@@ -443,10 +445,10 @@ class TrainValDataset(Dataset):
             elif mini > 1:
                 shapes[i] = [1, 1 / mini]
         self.batch_shapes = (
-            np.ceil(np.array(shapes) * self.img_size / self.stride + self.pad).astype(
-                np.int_
-            )
-            * self.stride
+                np.ceil(np.array(shapes) * self.img_size / self.stride + self.pad).astype(
+                    np.int_
+                )
+                * self.stride
         )
 
     @staticmethod
@@ -500,14 +502,15 @@ class TrainValDataset(Dataset):
                     ]
                     labels = np.array(labels, dtype=np.float32)
                 if len(labels):
+                    # TODO FUTURE: For now hardcode the fub ratio label
                     assert all(
-                        len(l) == 5 for l in labels
+                        len(l) == 6 for l in labels
                     ), f"{lb_path}: wrong label format."
                     assert (
-                        labels >= 0
+                            labels >= 0
                     ).all(), f"{lb_path}: Label values error: all values in label file must > 0"
                     assert (
-                        labels[:, 1:] <= 1
+                            labels[:, 1:] <= 1
                     ).all(), f"{lb_path}: Label values error: all coordinates must be normalized"
 
                     _, indices = np.unique(labels, axis=0, return_index=True)
@@ -538,7 +541,7 @@ class TrainValDataset(Dataset):
             )
 
         ann_id = 0
-        LOGGER.info(f"Convert to COCO format")
+        LOGGER.info("Convert to COCO format")
         for i, (img_path, info) in enumerate(tqdm(img_info.items())):
             labels = info["labels"] if info["labels"] else []
             img_id = osp.splitext(osp.basename(img_path))[0]
@@ -595,7 +598,7 @@ class LoadData:
     def __init__(self, path, webcam, webcam_addr):
         self.webcam = webcam
         self.webcam_addr = webcam_addr
-        if webcam: # if use web camera
+        if webcam:  # if use web camera
             imgp = []
             vidp = [int(webcam_addr) if webcam_addr.isdigit() else webcam_addr]
         else:
@@ -648,11 +651,11 @@ class LoadData:
             self.count += 1
             img = cv2.imread(path)  # BGR
         return img, path, self.cap
-        
+
     def add_video(self, path):
         self.frame = 0
         self.cap = cv2.VideoCapture(path)
         self.frames = int(self.cap.get(cv2.CAP_PROP_FRAME_COUNT))
-        
+
     def __len__(self):
         return self.nf  # number of files
