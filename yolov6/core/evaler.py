@@ -372,7 +372,7 @@ class Evaler:
 
     def convert_to_coco_format(self, outputs, out_fub, imgs, paths, shapes, ids):
         pred_results = []
-        for i, (pred, pred_c) in enumerate(zip(outputs, out_fub)):
+        for i, (pred, pred_f) in enumerate(zip(outputs, out_fub)):
             if len(pred) == 0:
                 continue
             path, shape = Path(paths[i]), shapes[i][0]
