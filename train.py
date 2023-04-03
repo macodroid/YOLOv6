@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 # -*- coding:utf-8 -*-
 import argparse
-from logging import Logger
 import os
-import yaml
 import os.path as osp
+import sys
 from pathlib import Path
+
 import torch
 import torch.distributed as dist
-import sys
+import yaml
 
 ROOT = os.getcwd()
 if str(ROOT) not in sys.path:
@@ -42,9 +42,13 @@ def get_args_parser(add_help=True):
     parser.add_argument('--gpu_count', type=int, default=0)
     parser.add_argument('--local_rank', type=int, default=-1, help='DDP parameter')
     parser.add_argument('--resume', nargs='?', const=True, default=False, help='resume the most recent training')
-    parser.add_argument('--write_trainbatch_tb', action='store_true', help='write train_batch image to tensorboard once an epoch, may slightly slower train speed if open')
-    parser.add_argument('--stop_aug_last_n_epoch', default=15, type=int, help='stop strong aug at last n epoch, neg value not stop, default 15')
-    parser.add_argument('--save_ckpt_on_last_n_epoch', default=-1, type=int, help='save last n epoch even not best or last, neg value not save')
+    parser.add_argument('--write_trainbatch_tb', action='store_true',
+                        help='write train_batch image to tensorboard once an epoch, may slightly '
+                             'slower train speed if open')
+    parser.add_argument('--stop_aug_last_n_epoch', default=15, type=int,
+                        help='stop strong aug at last n epoch, neg value not stop, default 15')
+    parser.add_argument('--save_ckpt_on_last_n_epoch', default=-1, type=int,
+                        help='save last n epoch even not best or last, neg value not save')
     parser.add_argument('--distill', action='store_true', help='distill or not')
     parser.add_argument('--distill_feat', action='store_true', help='distill featmap or not')
     parser.add_argument('--quant', action='store_true', help='quant or not')
@@ -52,7 +56,10 @@ def get_args_parser(add_help=True):
     parser.add_argument('--teacher_model_path', type=str, default=None, help='teacher model path')
     parser.add_argument('--temperature', type=int, default=20, help='distill temperature')
     parser.add_argument('--fuse_ab', action='store_true', help='fuse ab branch in training process or not')
-    parser.add_argument('--bs_per_gpu', default=32, type=int, help='batch size per GPU for auto-rescale learning rate, set to 16 for P6 models')
+    parser.add_argument('--bs_per_gpu', default=32, type=int,
+                        help='batch size per GPU for auto-rescale learning rate, set to 16 for P6 models')
+    parser.add_argument('--pred_fub', default=True, type=bool, help='Fub stands for Front Upper Border of 3D bounding box, '
+                                                               'Default is True')
     return parser
 
 
@@ -70,9 +77,9 @@ def check_and_init(args):
             with open(resume_opt_file_path) as f:
                 args = argparse.Namespace(**yaml.safe_load(f))  # load args value from args.yaml
         else:
-            LOGGER.warning(f'We can not find the path of {Path(checkpoint_path).parent.parent / "args.yaml"},'\
+            LOGGER.warning(f'We can not find the path of {Path(checkpoint_path).parent.parent / "args.yaml"},' \
                            f' we will save exp log to {Path(checkpoint_path).parent.parent}')
-            LOGGER.warning(f'In this case, make sure to provide configuration, such as data, batch size.')
+            LOGGER.warning('In this case, make sure to provide configuration, such as data, batch size.')
             args.save_dir = str(Path(checkpoint_path).parent.parent)
         args.resume = checkpoint_path  # set the args.resume to checkpoint path.
     else:
@@ -86,7 +93,7 @@ def check_and_init(args):
     # check device
     device = select_device(args.device)
     # set random seed
-    set_random_seed(1+args.rank, deterministic=(args.rank == -1))
+    set_random_seed(1 + args.rank, deterministic=(args.rank == -1))
     # save args
     if master_process:
         save_yaml(vars(args), osp.join(args.save_dir, 'args.yaml'))
@@ -102,12 +109,12 @@ def main(args):
     # reload envs because args was chagned in check_and_init(args)
     args.local_rank, args.rank, args.world_size = get_envs()
     LOGGER.info(f'training args are: {args}\n')
-    if args.local_rank != -1: # if DDP mode
+    if args.local_rank != -1:  # if DDP mode
         torch.cuda.set_device(args.local_rank)
         device = torch.device('cuda', args.local_rank)
         LOGGER.info('Initializing process group... ')
         dist.init_process_group(backend="nccl" if dist.is_nccl_available() else "gloo", \
-                init_method=args.dist_url, rank=args.local_rank, world_size=args.world_size)
+                                init_method=args.dist_url, rank=args.local_rank, world_size=args.world_size)
 
     # Start
     trainer = Trainer(args, cfg, device)

@@ -20,7 +20,8 @@ class Model(nn.Module):
         super().__init__()
         # Build network
         num_layers = config.model.head.num_layers
-        self.backbone, self.neck, self.detect = build_network(config, channels, num_classes, num_layers, fuse_ab=fuse_ab, distill_ns=distill_ns)
+        self.backbone, self.neck, self.detect = build_network(config, channels, num_classes, num_layers,
+                                                              fuse_ab=fuse_ab, distill_ns=distill_ns)
 
         # Init Detect head
         self.stride = self.detect.stride
@@ -33,7 +34,7 @@ class Model(nn.Module):
         export_mode = torch.onnx.is_in_onnx_export()
         x = self.backbone(x)
         x = self.neck(x)
-        if export_mode == False:
+        if export_mode is False:
             featmaps = []
             featmaps.extend(x)
         x = self.detect(x)

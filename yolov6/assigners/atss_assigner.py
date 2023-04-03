@@ -20,6 +20,7 @@ class ATSSAssigner(nn.Module):
                 n_level_bboxes,
                 gt_labels,
                 gt_bboxes,
+                gt_fub,
                 mask_gt,
                 pd_bboxes):
         r"""This code is based on
@@ -30,6 +31,7 @@ class ATSSAssigner(nn.Module):
             n_level_bboxes (List):len(3)
             gt_labels (Tensor): shape(bs, n_max_boxes, 1)
             gt_bboxes (Tensor): shape(bs, n_max_boxes, 4)
+            gt_fub (Tensor): shape(bs, n_max_boxes, 1)
             mask_gt (Tensor): shape(bs, n_max_boxes, 1)
             pd_bboxes (Tensor): shape(bs, n_max_boxes, 4)
         Returns:
@@ -74,8 +76,8 @@ class ATSSAssigner(nn.Module):
             mask_pos, overlaps, self.n_max_boxes)
 
         # assigned target
-        target_labels, target_bboxes, target_scores = self.get_targets(
-            gt_labels, gt_bboxes, target_gt_idx, fg_mask)
+        target_labels, target_bboxes, target_fub, target_scores = self.get_targets(
+            gt_labels, gt_bboxes, gt_fub, target_gt_idx, fg_mask)
 
         # soft label with iou
         if pd_bboxes is not None:
@@ -83,7 +85,7 @@ class ATSSAssigner(nn.Module):
             ious = ious.max(axis=-2)[0].unsqueeze(-1)
             target_scores *= ious
 
-        return target_labels.long(), target_bboxes, target_scores, fg_mask.bool()
+        return target_labels.long(), target_bboxes, target_fub, target_scores, fg_mask.bool()
 
     def select_topk_candidates(self,
                                distances,
@@ -138,6 +140,7 @@ class ATSSAssigner(nn.Module):
     def get_targets(self,
                     gt_labels,
                     gt_bboxes,
+                    gt_fub,
                     target_gt_idx,
                     fg_mask):
 
@@ -154,8 +157,12 @@ class ATSSAssigner(nn.Module):
         target_bboxes = gt_bboxes.reshape([-1, 4])[target_gt_idx.flatten()]
         target_bboxes = target_bboxes.reshape([self.bs, self.n_anchors, 4])
 
+        # assigned target fub
+        target_fub = gt_fub.reshape([-1, 1])[target_gt_idx.flatten()]
+        target_fub = target_fub.reshape([self.bs, self.n_anchors, 1])
+
         # assigned target scores
         target_scores = F.one_hot(target_labels.long(), self.num_classes + 1).float()
         target_scores = target_scores[:, :, :self.num_classes]
 
-        return target_labels, target_bboxes, target_scores
+        return target_labels, target_bboxes, target_fub, target_scores
