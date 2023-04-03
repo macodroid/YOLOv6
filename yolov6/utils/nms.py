@@ -43,7 +43,7 @@ def non_max_suppression(prediction, conf_thres=0.25, iou_thres=0.45, classes=Non
     Returns:
          list of detections, echo item is one tensor with shape (num_boxes, 6), 6 is for [xyxy, conf, cls].
     """
-
+    prediction, fub = prediction
     num_classes = prediction.shape[2] - 5  # number of classes
     pred_candidates = torch.logical_and(prediction[..., 4] > conf_thres, torch.max(prediction[..., 5:], axis=-1)[0] > conf_thres)  # candidates
     # Check the parameters.
@@ -58,7 +58,8 @@ def non_max_suppression(prediction, conf_thres=0.25, iou_thres=0.45, classes=Non
 
     tik = time.time()
     output = [torch.zeros((0, 6), device=prediction.device)] * prediction.shape[0]
-    for img_idx, x in enumerate(prediction):  # image index, image inference
+    out_fub = [torch.zeros((0, 2), device=fub.device)] * fub.shape[0]
+    for img_idx, (x, c) in enumerate(zip(prediction, fub)):  # image index, image inference
         x = x[pred_candidates[img_idx]]  # confidence
 
         # If no box remains, skip the next process.
@@ -98,8 +99,9 @@ def non_max_suppression(prediction, conf_thres=0.25, iou_thres=0.45, classes=Non
             keep_box_idx = keep_box_idx[:max_det]
 
         output[img_idx] = x[keep_box_idx]
+        out_fub[img_idx] = c[keep_box_idx]
         if (time.time() - tik) > time_limit:
             print(f'WARNING: NMS cost time exceed the limited {time_limit}s.')
             break  # time limit exceeded
 
-    return output
+    return output, out_fub

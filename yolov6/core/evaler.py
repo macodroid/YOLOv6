@@ -136,7 +136,7 @@ class Evaler:
 
             # post-process
             t3 = time_sync()
-            outputs = non_max_suppression(outputs, self.conf_thres, self.iou_thres, multi_label=True)
+            outputs, out_fub = non_max_suppression(outputs, self.conf_thres, self.iou_thres, multi_label=True)
             self.speed_result[3] += time_sync() - t3  # post-process time
             self.speed_result[0] += len(outputs)
 
@@ -145,7 +145,7 @@ class Evaler:
                 eval_outputs = copy.deepcopy([x.detach().cpu() for x in outputs])
 
             # save result
-            pred_results.extend(self.convert_to_coco_format(outputs, imgs, paths, shapes, self.ids))
+            pred_results.extend(self.convert_to_coco_format(outputs, out_fub, imgs, paths, shapes, self.ids))
 
             # for tensorboard visualization, maximum images to show: 8
             if i == 0:
@@ -370,9 +370,9 @@ class Evaler:
             coords[:, [1, 3]] = coords[:, [1, 3]].clip(0, img0_shape[0])  # y1, y2
         return coords
 
-    def convert_to_coco_format(self, outputs, imgs, paths, shapes, ids):
+    def convert_to_coco_format(self, outputs, out_fub, imgs, paths, shapes, ids):
         pred_results = []
-        for i, pred in enumerate(outputs):
+        for i, (pred, pred_c) in enumerate(zip(outputs, out_fub)):
             if len(pred) == 0:
                 continue
             path, shape = Path(paths[i]), shapes[i][0]
@@ -382,14 +382,17 @@ class Evaler:
             bboxes[:, :2] -= bboxes[:, 2:] / 2
             cls = pred[:, 5]
             scores = pred[:, 4]
+            fub = pred_f
             for ind in range(pred.shape[0]):
                 category_id = ids[int(cls[ind])]
                 bbox = [round(x, 3) for x in bboxes[ind].tolist()]
                 score = round(scores[ind].item(), 5)
+                f = round(fub[ind].item(), 5)
                 pred_data = {
                     "image_id": image_id,
                     "category_id": category_id,
                     "bbox": bbox,
+                    "fub": f,
                     "score": score
                 }
                 pred_results.append(pred_data)
