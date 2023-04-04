@@ -117,16 +117,18 @@ class ComputeLoss:
                 _n_anchors_list = n_anchors_list
                 _gt_labels = gt_labels.cpu().float()
                 _gt_bboxes = gt_bboxes.cpu().float()
+                _gt_fub = gt_fub.cpu().float()
                 _mask_gt = mask_gt.cpu().float()
                 _pred_bboxes = pred_bboxes.detach().cpu().float()
                 _stride_tensor = stride_tensor.cpu().float()
 
-                target_labels, target_bboxes, target_scores, fg_mask = \
+                target_labels, target_bboxes, target_fub, target_scores, fg_mask = \
                     self.warmup_assigner(
                         _anchors,
                         _n_anchors_list,
                         _gt_labels,
                         _gt_bboxes,
+                        _gt_fub,
                         _mask_gt,
                         _pred_bboxes * _stride_tensor)
 
@@ -136,20 +138,23 @@ class ComputeLoss:
                 _anchor_points = anchor_points.cpu().float()
                 _gt_labels = gt_labels.cpu().float()
                 _gt_bboxes = gt_bboxes.cpu().float()
+                _gt_fub = gt_fub.cpu().float()
                 _mask_gt = mask_gt.cpu().float()
                 _stride_tensor = stride_tensor.cpu().float()
 
-                target_labels, target_bboxes, target_scores, fg_mask = \
+                target_labels, target_bboxes, target_fub, target_scores, fg_mask = \
                     self.formal_assigner(
                         _pred_scores,
                         _pred_bboxes * _stride_tensor,
                         _anchor_points,
                         _gt_labels,
                         _gt_bboxes,
+                        _gt_fub,
                         _mask_gt)
 
             target_labels = target_labels.cuda()
             target_bboxes = target_bboxes.cuda()
+            target_fub = target_fub.cuda()
             target_scores = target_scores.cuda()
             fg_mask = fg_mask.cuda()
         # Dynamic release GPU memory

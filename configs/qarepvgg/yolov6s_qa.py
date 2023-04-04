@@ -65,3 +65,5 @@ data_aug = dict(
 )
 
 training_mode='qarepvgg'
+
+# TODO: Need to add PTQ params
