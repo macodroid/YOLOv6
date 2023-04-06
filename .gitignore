@@ -115,3 +115,4 @@ venv.bak/
 *.onnx
 *.pt
 *.engine
+/speed_radar/models/
