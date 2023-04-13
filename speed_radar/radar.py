@@ -66,7 +66,7 @@ class Radar:
             if center is not None:
                 track = self.get_tracker(box)
                 track.assign_center(center)
-        self.remove()
+        self.remove_tracker()
 
     def write_record(self):
         with open(self.write_path, 'w') as file:

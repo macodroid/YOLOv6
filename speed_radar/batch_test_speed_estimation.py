@@ -171,12 +171,14 @@ if __name__ == "__main__":
     vid_list = []
     calib_list = []
     store_results_list = []
+    road_mask_list = []
     video_path = "/home/maco/Documents/BrnoCompSpeed/dataset"
     results_path = "/home/maco/Documents/BrnoCompSpeed/results"
 
     for i in range(4, 7):
         dir_list = ['session{}_center'.format(i), 'session{}_left'.format(i), 'session{}_right'.format(i)]
         vid_list.extend([os.path.join(video_path, d, 'video.avi') for d in dir_list])
+        road_mask_list.extend([os.path.join(video_path, d, 'video_mask.png') for d in dir_list])
         calib_list.extend(
             [os.path.join(results_path, d, 'system_SochorCVIU_Edgelets_BBScale_Reg.json') for d in dir_list])
         store_results_list.extend([os.path.join(results_path, d) for d in dir_list])
@@ -190,15 +192,13 @@ if __name__ == "__main__":
                       img_size=args.yolo_img_size,
                       half=args.half)
 
-    for vid_path, calib_path, store_results_path in zip(vid_list, calib_list, store_results_list):
+    for vid_path, calib_path, store_results_path, road_mask_path in zip(vid_list, calib_list, store_results_list, road_mask_list):
         start_processing = time.time()
-        if 'session4_center' in store_results_path:
-            continue
         print("Processing: {}".format(vid_path))
         batch_test_video(inferer,
                          calib_path,
                          vid_path,
-                         args.road_mask_path,
+                         road_mask_path,
                          args.img_size,
                          store_results_path,
                          args.test_name,
