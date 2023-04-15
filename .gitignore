@@ -118,3 +118,4 @@ venv.bak/
 /speed_radar/models/
 
 data/
+.idea/
