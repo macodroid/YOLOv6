@@ -34,6 +34,7 @@ class Radar:
         self.keep = keep
         self.projector = projector
         self.video_fps = video_fps
+        result_name = f"system_{result_name}"
         self.write_path = os.path.join(result_path, result_name + '.json')
 
         self.trackers: list[Tracker] = []

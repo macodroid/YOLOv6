@@ -43,10 +43,6 @@ def get_args_parser(add_help=True):
     return args
 
 
-class FolderVideoReader:
-    pass
-
-
 def batch_test_video(inferer: Inferer,
                      camera_calibration_file: str,
                      video_path: str,
@@ -84,9 +80,9 @@ def batch_test_video(inferer: Inferer,
         borderMode=cv2.BORDER_CONSTANT,
     )
 
-    q_frames = Queue(32)
-    q_images = Queue(32)
-    q_predict = Queue(32)
+    q_frames = Queue(64)
+    q_images = Queue(64)
+    q_predict = Queue(64)
     e_stop = Event()
 
     def read_frames():
@@ -192,7 +188,8 @@ if __name__ == "__main__":
                       img_size=args.yolo_img_size,
                       half=args.half)
 
-    for vid_path, calib_path, store_results_path, road_mask_path in zip(vid_list, calib_list, store_results_list, road_mask_list):
+    for vid_path, calib_path, store_results_path, road_mask_path in zip(vid_list, calib_list, store_results_list,
+                                                                        road_mask_list):
         start_processing = time.time()
         print("Processing: {}".format(vid_path))
         batch_test_video(inferer,
@@ -204,4 +201,3 @@ if __name__ == "__main__":
                          args.test_name,
                          args.batch_size_processing)
         print("Finished. Processing time: {}".format(time.time() - start_processing))
-
