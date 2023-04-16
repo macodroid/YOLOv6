@@ -184,8 +184,10 @@ def mosaic_augmentation(img_size, imgs, hs, ws, labels, hyp):
         labels4.append(labels_per_img)
 
     # Concat/clip labels
+
+    labels4 = replace_empty_array_with_random(labels4)
     labels4 = np.concatenate(labels4, 0)
-    for x in (labels4[:, 1:]):
+    for x in labels4[:, 1:]:
         np.clip(x, 0, 2 * s, out=x)
 
     # Augment
@@ -197,3 +199,15 @@ def mosaic_augmentation(img_size, imgs, hs, ws, labels, hyp):
                                   new_shape=(img_size, img_size))
 
     return img4, labels4
+
+
+def replace_empty_array_with_random(arrays):
+    new_arrays = []
+    for array in arrays:
+        if array.shape[0] == 0:
+            new_array = np.random.rand(1, 6)
+            new_array[0, 0] = 3
+        else:
+            new_array = array
+        new_arrays.append(new_array)
+    return new_arrays

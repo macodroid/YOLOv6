@@ -168,8 +168,8 @@ if __name__ == "__main__":
     calib_list = []
     store_results_list = []
     road_mask_list = []
-    video_path = "/home/maco/Documents/BrnoCompSpeed/dataset"
-    results_path = "/home/maco/Documents/BrnoCompSpeed/results"
+    video_path = "home/k/kocur15/data/2016-ITS-BrnoCompSpeed/dataset"
+    results_path = "/home/m/macko70/projects/masters/dataset/results"
 
     for i in range(4, 7):
         dir_list = ['session{}_center'.format(i), 'session{}_left'.format(i), 'session{}_right'.format(i)]
@@ -201,3 +201,4 @@ if __name__ == "__main__":
                          args.test_name,
                          args.batch_size_processing)
         print("Finished. Processing time: {}".format(time.time() - start_processing))
+
