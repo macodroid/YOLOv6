@@ -44,7 +44,7 @@ def non_max_suppression(prediction, conf_thres=0.25, iou_thres=0.45, classes=Non
          list of detections, echo item is one tensor with shape (num_boxes, 6), 6 is for [xyxy, conf, cls].
     """
     prediction, fub = prediction
-    num_classes = prediction.shape[2] - 5  # number of classes
+    num_classes = prediction.shape[-1] - 5  # number of classes
     pred_candidates = torch.logical_and(prediction[..., 4] > conf_thres, torch.max(prediction[..., 5:], axis=-1)[0] > conf_thres)  # candidates
     # Check the parameters.
     assert 0 <= conf_thres <= 1, f'conf_thresh must be in 0.0 to 1.0, however {conf_thres} is provided.'

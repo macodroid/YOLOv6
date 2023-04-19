@@ -65,22 +65,20 @@ class Inferer:
 
         LOGGER.info("Switch model to deploy modality.")
 
-    def simplified_inference(self, images, conf_thres, iou_thres, classes, agnostic_nms, max_det):
-        bboxs = []
-        fubs = []
-        for image_src in images:
-            img, img_src = self.process_image(image_src, self.img_size, self.stride, self.half)
-            img = img.to(self.device)
-            if len(img.shape) == 3:
-                img = img[None]
-                # expand for batch dim
-            pred_results = self.model(img)
-            det, fub = non_max_suppression(pred_results, conf_thres, iou_thres, classes, agnostic_nms, max_det=max_det)
-            det, fub = det[0], fub[0]
-            if len(det):
-                det[:, :4] = self.rescale(img.shape[2:], det[:, :4], img_src.shape).round()
-            bboxs.append(det[:, :4].detach().cpu().numpy())
-            fubs.append(fub.detach().cpu().numpy())
+    def simple_inference(self, images, conf_thres, iou_thres, classes, agnostic_nms, max_det):
+        bboxs, fubs = [], []
+        imgs, img_srcs = self.process_batch_images(images)
+        imgs = imgs.to(self.device)
+
+        pred_results = self.model(imgs)
+
+        det, fub = non_max_suppression(pred_results, conf_thres, iou_thres, classes, agnostic_nms, max_det=max_det)
+
+        for i in range(len(det)):
+            if len(det[i]):
+                det[i][:, :4] = self.rescale(imgs.shape[2:], det[i][:, :4], img_srcs[i].shape).round()
+            bboxs.append(det[i][:, :4].detach().cpu().numpy())
+            fubs.append(fub[i].detach().cpu().numpy())
         return bboxs, fubs
 
     def infer(self, conf_thres, iou_thres, classes, agnostic_nms, max_det, save_dir, save_txt, save_img, hide_labels,
@@ -178,6 +176,15 @@ class Inferer:
                         save_path = str(Path(save_path).with_suffix('.mp4'))  # force *.mp4 suffix on results videos
                         vid_writer = cv2.VideoWriter(save_path, cv2.VideoWriter_fourcc(*'mp4v'), fps, (w, h))
                     vid_writer.write(img_src)
+
+    def process_batch_images(self, images):
+        processed_imgs = []
+        imgs = []
+        for img in images:
+            img, img_src = self.process_image(img, self.img_size, self.stride, self.half)
+            processed_imgs.append(img)
+            imgs.append(img_src)
+        return torch.stack(processed_imgs, dim=0), np.array(imgs)
 
     @staticmethod
     def process_image(img_src, img_size, stride, half):

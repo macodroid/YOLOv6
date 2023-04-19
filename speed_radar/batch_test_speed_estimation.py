@@ -58,6 +58,7 @@ def batch_test_video(inferer: Inferer,
                      batch_size_processing: int = 32,
                      video_fps: int = 50,
                      ):
+    avg_fps = []
     im_w, im_h = img_size
     camera_calibration = get_calibration_params(camera_calibration_file)
     vp1, vp2, vp3, pp, road_plane, focal = compute_camera_calibration(
@@ -85,9 +86,9 @@ def batch_test_video(inferer: Inferer,
         borderMode=cv2.BORDER_CONSTANT,
     )
 
-    q_frames = Queue(32)
-    q_images = Queue(32)
-    q_predict = Queue(32)
+    q_frames = Queue(batch_size_processing)
+    q_images = Queue(batch_size_processing)
+    q_predict = Queue(batch_size_processing)
     e_stop = Event()
 
     def read_frames():
@@ -123,9 +124,11 @@ def batch_test_video(inferer: Inferer,
                 break
             gpu_time = time.time()
             images = np.stack(images, axis=0)
-            bbox_2d, fub = inferer.simplified_inference(images, 0.65, 0.4, None, None, 1000)
+            bbox_2d, fub = inferer.simple_inference(images, 0.65, 0.4, None, None, 1000)
             q_predict.put((bbox_2d, fub))
-            print("GPU FPS: {}".format(batch_size_processing / (time.time() - gpu_time)))
+            gpu_finish_time = (time.time() - gpu_time)
+            avg_fps.append(batch_size_processing / gpu_finish_time)
+            print("GPU FPS: {}".format(batch_size_processing / gpu_finish_time))
 
     def process():
         radar = Radar(transform_matrix=M,
@@ -165,6 +168,7 @@ def batch_test_video(inferer: Inferer,
     reader.join()
     predictor.join()
     processor.join()
+    print("Average GPU time:", np.mean(avg_fps), ", for ", video_path)
 
 
 if __name__ == "__main__":
