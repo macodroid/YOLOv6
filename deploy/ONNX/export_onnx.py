@@ -1,29 +1,27 @@
 #!/usr/bin/env python3
 # -*- coding:utf-8 -*-
 import argparse
-import time
-import sys
 import os
-import torch
-import torch.nn as nn
+import sys
+import time
+
 import onnx
 
 ROOT = os.getcwd()
 if str(ROOT) not in sys.path:
     sys.path.append(str(ROOT))
 
-from yolov6.models.yolo import *
 from yolov6.models.effidehead import Detect
 from yolov6.layers.common import *
 from yolov6.utils.events import LOGGER
 from yolov6.utils.checkpoint import load_checkpoint
 from io import BytesIO
 
-
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--weights', type=str, default='./yolov6s.pt', help='weights path')
-    parser.add_argument('--img-size', nargs='+', type=int, default=[640, 640], help='image size, the order is: height width')  # height, width
+    parser.add_argument('--img-size', nargs='+', type=int, default=[544, 960],
+                        help='image size, the order is: height width')  # height, width
     parser.add_argument('--batch-size', type=int, default=1, help='batch size')
     parser.add_argument('--half', action='store_true', help='FP16 half-precision export')
     parser.add_argument('--inplace', action='store_true', help='set Detect() inplace=True')
@@ -34,8 +32,8 @@ if __name__ == '__main__':
     parser.add_argument('--ort', action='store_true', help='export onnx for onnxruntime')
     parser.add_argument('--with-preprocess', action='store_true', help='export bgr2rgb and normalize')
     parser.add_argument('--topk-all', type=int, default=100, help='topk objects for every images')
-    parser.add_argument('--iou-thres', type=float, default=0.45, help='iou threshold for NMS')
-    parser.add_argument('--conf-thres', type=float, default=0.4, help='conf threshold for NMS')
+    parser.add_argument('--iou-thres', type=float, default=0.4, help='iou threshold for NMS')
+    parser.add_argument('--conf-thres', type=float, default=0.65, help='conf threshold for NMS')
     parser.add_argument('--device', default='0', help='cuda device, i.e. 0 or 0,1,2,3 or cpu')
     args = parser.parse_args()
     args.img_size *= 2 if len(args.img_size) == 1 else 1  # expand
@@ -52,6 +50,7 @@ if __name__ == '__main__':
         if isinstance(layer, RepVGGBlock):
             layer.switch_to_deploy()
     # Input
+    (height, width) = args.img_size
     img = torch.zeros(args.batch_size, 3, *args.img_size).to(device)  # image size(1,3,320,192) iDetection
 
     # Update model
@@ -68,9 +67,9 @@ if __name__ == '__main__':
     if args.dynamic_batch:
         args.batch_size = 'batch'
         dynamic_axes = {
-            'images' :{
-                0:'batch',
-            },}
+            'images': {
+                0: 'batch',
+            }, }
         if args.end2end:
             output_axes = {
                 'num_dets': {0: 'batch'},
@@ -84,10 +83,10 @@ if __name__ == '__main__':
             }
         dynamic_axes.update(output_axes)
 
-
     if args.end2end:
         from yolov6.models.end2end import End2End
-        model = End2End(model, max_obj=args.topk_all, iou_thres=args.iou_thres,score_thres=args.conf_thres,
+
+        model = End2End(model, max_obj=args.topk_all, iou_thres=args.iou_thres, score_thres=args.conf_thres,
                         device=device, ort=args.ort, trt_version=args.trt_version, with_preprocess=args.with_preprocess)
 
     print("===================")
@@ -105,7 +104,7 @@ if __name__ == '__main__':
                               training=torch.onnx.TrainingMode.EVAL,
                               do_constant_folding=True,
                               input_names=['images'],
-                              output_names=['num_dets', 'det_boxes', 'det_scores', 'det_classes']
+                              output_names=['num_dets', 'det_boxes', 'det_scores', 'det_classes', 'det_fub']
                               if args.end2end else ['outputs'],
                               dynamic_axes=dynamic_axes)
             f.seek(0)
@@ -122,6 +121,7 @@ if __name__ == '__main__':
         if args.simplify:
             try:
                 import onnxsim
+
                 LOGGER.info('\nStarting to simplify ONNX...')
                 onnx_model, check = onnxsim.simplify(onnx_model)
                 assert check, 'assert check failed'
@@ -136,14 +136,14 @@ if __name__ == '__main__':
     LOGGER.info('\nExport complete (%.2fs)' % (time.time() - t))
     if args.end2end:
         if not args.ort:
-            info = f'trtexec --onnx={export_file} --saveEngine={export_file.replace(".onnx",".engine")}'
+            info = f'trtexec --onnx={export_file} --saveEngine={export_file.replace(".onnx", ".engine")}'
             if args.dynamic_batch:
-                LOGGER.info('Dynamic batch export should define min/opt/max batchsize\n'+
+                LOGGER.info('Dynamic batch export should define min/opt/max batchsize\n' +
                             'We set min/opt/max = 1/16/32 default!')
-                wandh = 'x'.join(list(map(str,args.img_size)))
-                info += (f' --minShapes=images:1x3x{wandh}'+
-                f' --optShapes=images:16x3x{wandh}'+
-                f' --maxShapes=images:32x3x{wandh}'+
-                f' --shapes=images:16x3x{wandh}')
+                wandh = 'x'.join(list(map(str, args.img_size)))
+                info += (f' --minShapes=images:1x3x{wandh}' +
+                         f' --optShapes=images:16x3x{wandh}' +
+                         f' --maxShapes=images:32x3x{wandh}' +
+                         f' --shapes=images:16x3x{wandh}')
             LOGGER.info('\nYou can export tensorrt engine use trtexec tools.\nCommand is:')
             LOGGER.info(info)

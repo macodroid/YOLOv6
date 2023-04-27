@@ -50,9 +50,11 @@
 from __future__ import print_function
 
 import argparse
+import os
 import traceback
 import sys
 import tensorrt as trt
+os.environ['CUDA_MODULE_LOADING'] = 'LAZY'
 
 MAX_BATCH_SIZE = 1
 
@@ -97,7 +99,10 @@ def build_engine_from_onnx(model_name,
         print('Building an engine.  This would take a while...')
         print('(Use "--verbose" or "-v" to enable verbose logging.)')
         config = builder.create_builder_config()
-        config.max_workspace_size = 2 << 30
+        # config.max_workspace_size = 2 << 32
+        memory_pool_type = trt.MemoryPoolType.WORKSPACE  # You can use other types like trt.MemoryPoolType.DLA
+        memory_pool_size = 2 ** 32  # Set the memory pool size to 2**31 bytes
+        config.set_memory_pool_limit(memory_pool_type, memory_pool_size)
         if t_dtype == trt.DataType.HALF:
             config.flags |= 1 << int(trt.BuilderFlag.FP16)
 
@@ -111,7 +116,7 @@ def build_engine_from_onnx(model_name,
                 config.int8_calibrator = Calibrator(calib_loader, calib_cache)
                 print('Int8 calibation is enabled.')
 
-        engine = builder.build_engine(network, config)
+        engine = builder.build_serialized_network(network, config)
 
         try:
             assert engine
@@ -134,7 +139,7 @@ def main():
         '-v', '--verbose', action='store_true',
         help='enable verbose output (for debugging)')
     parser.add_argument(
-        '-m', '--model', type=str, required=True,
+         '-m', '--model', type=str, required=True,
         help=('onnx model path'))
     parser.add_argument(
         '-d', '--dtype', type=str, required=True,
@@ -144,14 +149,14 @@ def main():
         help='whether the onnx model is qat; if it is, the int8 calibrator is not needed')
     # If enable int8(not post-QAT model), then set the following
     parser.add_argument('--img-size', nargs='+', type=int,
-                        default=[640, 640], help='image size of model input, the order is: height width')
+                        default=[544, 960], help='image size of model input, the order is: height width')
     parser.add_argument('--batch-size', type=int,
-                        default=128, help='batch size for training: default 64')
-    parser.add_argument('--num-calib-batch', default=6, type=int,
+                        default=64, help='batch size for training: default 64')
+    parser.add_argument('--num-calib-batch', default=16, type=int,
                         help='Number of batches for calibration')
     parser.add_argument('--calib-img-dir', default='../coco/images/train2017', type=str,
                         help='Number of batches for calibration')
-    parser.add_argument('--calib-cache', default='./yolov6s_calibration.cache', type=str,
+    parser.add_argument('--calib-cache', default='', type=str,
                         help='Path of calibration cache')
 
     args = parser.parse_args()
@@ -175,6 +180,8 @@ def main():
     if args.dtype == "int8" and not args.qat:
         engine_path = args.model.replace('.onnx', '-int8-{}-{}-minmax.trt'.format(args.batch_size, args.num_calib_batch))
 
+    runtime = trt.Runtime(trt.Logger(trt.Logger.INFO))
+    engine = runtime.deserialize_cuda_engine(engine)
     with open(engine_path, 'wb') as f:
         f.write(engine.serialize())
     print('Serialized the TensorRT engine to file: %s' % engine_path)

@@ -17,23 +17,26 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
-import sys
 import glob
-import random
 import logging
-import cv2
+import os
+import random
 
+import cv2
 import numpy as np
-from PIL import Image
-import tensorrt as trt
 import pycuda.driver as cuda
 import pycuda.autoinit
+import tensorrt as trt
+import torch
+from PIL import Image
+
+from deploy.TensorRT.Processor import letterbox
 
 logging.basicConfig(level=logging.DEBUG,
                     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
                     datefmt="%Y-%m-%d %H:%M:%S")
 logger = logging.getLogger(__name__)
+
 
 def preprocess_yolov6(image, channels=3, height=224, width=224):
     """Pre-processing for YOLOv6-based Object Detection Models
@@ -77,6 +80,17 @@ def preprocess_yolov6(image, channels=3, height=224, width=224):
     return img_data
 
 
+def custom_preprocess_data(img_src, img_size, stride, half):
+    image = letterbox(img_src, img_size, stride=stride)[0]
+    # Convert
+    image = image.transpose((2, 0, 1))[::-1]  # HWC to CHW, BGR to RGB
+    image = torch.from_numpy(np.ascontiguousarray(image))
+    image = image.half() if half else image.float()  # uint8 to fp16/32
+    image /= 255  # 0 - 255 to 0.0 - 1.0
+
+    return image, img_src
+
+
 def get_int8_calibrator(calib_cache, calib_data, max_calib_size, calib_batch_size):
     # Use calibration cache if it exists
     if os.path.exists(calib_cache):
@@ -85,7 +99,8 @@ def get_int8_calibrator(calib_cache, calib_data, max_calib_size, calib_batch_siz
     # Use calibration files from validation dataset if no cache exists
     else:
         if not calib_data:
-            raise ValueError("ERROR: Int8 mode requested, but no calibration data provided. Please provide --calibration-data /path/to/calibration/files")
+            raise ValueError(
+                "ERROR: Int8 mode requested, but no calibration data provided. Please provide --calibration-data /path/to/calibration/files")
 
         calib_files = get_calibration_files(calib_data, max_calib_size)
 
@@ -93,8 +108,8 @@ def get_int8_calibrator(calib_cache, calib_data, max_calib_size, calib_batch_siz
     preprocess_func = preprocess_yolov6
 
     int8_calibrator = ImageCalibrator(calibration_files=calib_files,
-                                         batch_size=calib_batch_size,
-                                         cache_file=calib_cache)
+                                      batch_size=calib_batch_size,
+                                      cache_file=calib_cache)
     return int8_calibrator
 
 
@@ -125,7 +140,8 @@ def get_calibration_files(calibration_data, max_calibration_size=None, allowed_e
 
     if max_calibration_size:
         if len(calibration_files) > max_calibration_size:
-            logger.warning("Capping number of calibration images to max_calibration_size: {:}".format(max_calibration_size))
+            logger.warning(
+                "Capping number of calibration images to max_calibration_size: {:}".format(max_calibration_size))
             random.seed(42)  # Set seed for reproducibility
             calibration_files = random.sample(calibration_files, max_calibration_size)
 
@@ -180,7 +196,7 @@ class ImageCalibrator(trt.IInt8EntropyCalibrator2):
                 else:
                     image = Image.open(self.files[index + offset])
                 self.batch[offset] = self.preprocess_func(image, *self.input_shape)
-            logger.info("Calibration images pre-processed: {:}/{:}".format(index+self.batch_size, len(self.files)))
+            logger.info("Calibration images pre-processed: {:}/{:}".format(index + self.batch_size, len(self.files)))
             yield self.batch
 
     def get_batch_size(self):

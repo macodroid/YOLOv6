@@ -4,8 +4,9 @@ import time
 import cv2
 import numpy as np
 
-from speed_radar.radar import Radar
-from speed_radar.utils import get_world_coordinates_on_road_plane, get_transform_matrix_with_criterion, \
+from radar import Radar
+from trt_inferer import TrtInferer
+from utils import get_world_coordinates_on_road_plane, get_transform_matrix_with_criterion, \
     get_calibration_params, compute_camera_calibration
 from yolov6.core.inferer import Inferer
 from yolov6.utils.events import LOGGER
@@ -14,9 +15,10 @@ from yolov6.utils.events import LOGGER
 def get_args_parser(add_help=True):
     parser = argparse.ArgumentParser(description='Yolov6 3d speed measurement', add_help=add_help)
     parser.add_argument('--weights', type=str, default='weights/yolov6s.pt', help='model path(s) for inference.')
+    parser.add_argument('--trt-model', type=str, default='', help='model path(s) for inference.')
     parser.add_argument('--source', type=str, default='data/images', help='the source path, e.g. image-file/dir.')
     parser.add_argument('--yaml', type=str, default='../data/bcs.yaml', help='data yaml file.')
-    parser.add_argument('--yolo-img-size', nargs='+', type=int, default=[640, 640],
+    parser.add_argument('--yolo-img-size', nargs='+', type=int, default=[544, 960],
                         help='the image-size(h,w) in inference size.')
     parser.add_argument('--img-size', nargs='+', type=int, default=[960, 540],
                         help='The image size (h,w) for inference.')
@@ -38,7 +40,7 @@ def get_args_parser(add_help=True):
     return args
 
 
-def process_video(video_path: str, road_mask: np.ndarray,
+def process_video(trt_inferer, video_path: str, road_mask: np.ndarray,
                   transform_matrix: np.ndarray, inv_transform_matrix: np.ndarray, img_size: tuple,
                   inferer: Inferer, vp0_t: np.ndarray, vp1: np.ndarray,
                   vp2: np.ndarray, vp3: np.ndarray, projector, offline: bool, video_fps: int, result_dir: str,
@@ -70,7 +72,8 @@ def process_video(video_path: str, road_mask: np.ndarray,
             (img_size[0], img_size[1]),
             borderMode=cv2.BORDER_CONSTANT,
         )
-        bbox2d, fub = inferer.simplified_inference(t_image, 0.65, 0.4, None, None, 1000)
+        bbox2d, fub = trt_inferer.infer(t_image)
+        # bbox2d, fub = inferer.simplified_inference(t_image, 0.65, 0.4, None, None, 1000)
         if offline:
             radar.process_frame_offline(bbox2d, fub)
         else:
@@ -79,11 +82,11 @@ def process_video(video_path: str, road_mask: np.ndarray,
                 continue
             else:
                 img_with_3d_bb = radar.process_frame(bbox2d, fub, frame)
-                # cv2.imshow('frame', img_with_3d_bb)
+                cv2.imshow('frame', img_with_3d_bb)
             # Increment the frame counter
             frame_count += 1
-            # if cv2.waitKey(1) & 0xFF == ord('q'):
-            #     break
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
     cap.release()
     cv2.destroyAllWindows()
 
@@ -128,7 +131,9 @@ def main(args):
     vp0_t = cv2.perspectiveTransform(vp0_t, M)
     vp0_t = vp0_t[0][0]
 
-    process_video(args.vid_path, road_mask, M, IM, args.img_size, inferer, vp0_t, vp1, vp2, vp3, projector,
+    trt_inferer = TrtInferer(trt_engine_path=args.trt_model, image_size=args.yolo_img_size, stride=32, half=args.half)
+
+    process_video(trt_inferer, args.vid_path, road_mask, M, IM, args.img_size, inferer, vp0_t, vp1, vp2, vp3, projector,
                   offline=args.process_offline, video_fps=args.video_fps, result_dir=args.result_dir,
                   test_name=args.test_name, camera_calib_structure=camera_calibration)
 

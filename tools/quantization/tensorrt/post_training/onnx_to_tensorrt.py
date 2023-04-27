@@ -16,7 +16,7 @@
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
+# See import pycuda.autoinitthe License for the specific language governing permissions and
 # limitations under the License.
 
 import os
@@ -25,7 +25,8 @@ import glob
 import math
 import logging
 import argparse
-
+import torch
+import pycuda.autoinit
 import tensorrt as trt
 #sys.path.remove('/opt/ros/kinetic/lib/python2.7/dist-packages')
 
@@ -168,7 +169,9 @@ def main():
          builder.create_builder_config() as config, \
          trt.OnnxParser(network, TRT_LOGGER) as parser:
 
-        config.max_workspace_size = 2**30 # 1GiB
+        memory_pool_type = trt.MemoryPoolType.WORKSPACE  # You can use other types like trt.MemoryPoolType.DLA
+        memory_pool_size = 2 ** 32  # Set the memory pool size to 2**32 bytes
+        config.set_memory_pool_limit(memory_pool_type, memory_pool_size)
 
         # Set Builder Config Flags
         for flag in builder_flag_map:
@@ -213,7 +216,7 @@ def main():
                                                              args.calibration_batch_size)
 
         logger.info("Building Engine...")
-        with builder.build_engine(network, config) as engine, open(args.output, "wb") as f:
+        with builder.build_serialized_network(network, config) as engine, open(args.output, "wb") as f:
             logger.info("Serializing engine to file: {:}".format(args.output))
             f.write(engine.serialize())
 

@@ -34,7 +34,7 @@ class Radar:
         self.keep = keep
         self.projector = projector
         self.video_fps = video_fps
-        self.write_path = os.path.join(result_path, result_name + '.json')
+        self.write_path = os.path.join(result_path, "system_" + result_name + '.json')
 
         self.trackers: list[Tracker] = []
         self.last_id = 0
@@ -47,7 +47,7 @@ class Radar:
     def process_frame(self, boxes_2d, fubs, frame):
         image = np.copy(frame)
         self.frame += 1
-        if self.frame % 1000 == 0 and self.save_often:
+        if self.frame % 5000 == 0 and self.save_often:
             self.write_record()
 
         for box_2d, fub in zip(boxes_2d, fubs):

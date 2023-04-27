@@ -1,6 +1,6 @@
 import numpy as np
 
-from speed_radar.utils import calculate_iou
+from utils import calculate_iou
 
 
 class Tracker:

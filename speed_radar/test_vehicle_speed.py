@@ -4,8 +4,8 @@ import time
 import cv2
 import numpy as np
 
-from speed_radar.radar import Radar
-from speed_radar.utils import get_calibration_params, compute_camera_calibration, get_transform_matrix_with_criterion, \
+from radar import Radar
+from utils import get_calibration_params, compute_camera_calibration, get_transform_matrix_with_criterion, \
     get_world_coordinates_on_road_plane
 from yolov6.core.inferer import Inferer
 from yolov6.utils.events import LOGGER

@@ -136,7 +136,7 @@ class Evaler:
 
             # post-process
             t3 = time_sync()
-            outputs, out_fub = non_max_suppression(outputs, self.conf_thres, self.iou_thres, multi_label=True)
+            outputs, out_fub = non_max_suppression(outputs, self.conf_thres, self.iou_thres, multi_label=False)
             self.speed_result[3] += time_sync() - t3  # post-process time
             self.speed_result[0] += len(outputs)
 

@@ -37,7 +37,7 @@ def non_max_suppression(prediction, conf_thres=0.25, iou_thres=0.45, classes=Non
         iou_thres: (float) iou threshold.
         classes: (None or list[int]), if a list is provided, nms only keep the classes you provide.
         agnostic: (bool), when it is set to True, we do class-independent nms, otherwise, different class would do nms respectively.
-        multi_label: (bool), when it is set to True, one box can have multi labels, otherwise, one box only huave one label.
+        multi_label: (bool), when it is set to True, one box can have multi labels, otherwise, one box only have one label.
         max_det:(int), max number of output bboxes.
 
     Returns:

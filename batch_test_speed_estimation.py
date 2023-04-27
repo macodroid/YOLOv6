@@ -7,11 +7,10 @@ from threading import Event, Thread
 import cv2
 import numpy as np
 
-from speed_radar.radar import Radar
-from speed_radar.utils import get_calibration_params, compute_camera_calibration, get_transform_matrix_with_criterion
+from radar import Radar
+from utils import get_calibration_params, compute_camera_calibration, get_transform_matrix_with_criterion
 from yolov6.core.inferer import Inferer
 from yolov6.utils.events import LOGGER
-
 
 TIMEOUT = 20
 
@@ -20,13 +19,13 @@ def get_args_parser(add_help=True):
     parser = argparse.ArgumentParser(description='Yolov6 3d speed measurement', add_help=add_help)
     parser.add_argument('--weights', type=str, default='weights/yolov6s.pt', help='model path(s) for inference.')
     parser.add_argument('--source', type=str, default='data/images', help='the source path, e.g. image-file/dir.')
-    parser.add_argument('--yaml', type=str, default='../data/bcs.yaml', help='data yaml file.')
-    parser.add_argument('--yolo-img-size', nargs='+', type=int, default=[640, 640],
+    parser.add_argument('--yaml', type=str, default='data/bcs.yaml', help='data yaml file.')
+    parser.add_argument('--yolo-img-size', nargs='+', type=int, default=[352, 640],
                         help='the image-size(h,w) in inference size.')
     parser.add_argument('--img-size', nargs='+', type=int, default=[960, 540],
                         help='The image size (h,w) for inference.')
     parser.add_argument('--iou-thres', type=float, default=0.65, help='NMS IoU threshold for inference.')
-    parser.add_argument('--half', default=True, action='store_true',
+    parser.add_argument('--half', action='store_true',
                         help='whether to use FP16 half-precision inference.')
     parser.add_argument('--camera-calib-file', type=str, default='data/camera_calibration.yaml',
                         help='camera calibration file.')
@@ -42,10 +41,6 @@ def get_args_parser(add_help=True):
     args = parser.parse_args()
     LOGGER.info(args)
     return args
-
-
-class FolderVideoReader:
-    pass
 
 
 def batch_test_video(inferer: Inferer,
@@ -85,6 +80,16 @@ def batch_test_video(inferer: Inferer,
         (img_size[0], img_size[1]),
         borderMode=cv2.BORDER_CONSTANT,
     )
+    radar = Radar(transform_matrix=M,
+                  inv_transform_matrix=IM,
+                  vanishing_points=[vp1, vp2, vp3],
+                  vp0_t=vp0_t,
+                  image_size=img_size,
+                  projector=None,
+                  video_fps=video_fps,
+                  result_path=result_dir,
+                  result_name=test_name,
+                  camera_calib_structure=camera_calibration)
 
     q_frames = Queue(batch_size_processing)
     q_images = Queue(batch_size_processing)
@@ -124,23 +129,13 @@ def batch_test_video(inferer: Inferer,
                 break
             gpu_time = time.time()
             images = np.stack(images, axis=0)
-            bbox_2d, fub = inferer.simple_inference(images, 0.65, 0.4, None, None, 1000)
+            bbox_2d, fub = inferer.simple_inference(images, 0.65, 0.65, None, None, 1000)
             q_predict.put((bbox_2d, fub))
             gpu_finish_time = (time.time() - gpu_time)
             avg_fps.append(batch_size_processing / gpu_finish_time)
-            print("GPU FPS: {}".format(batch_size_processing / gpu_finish_time))
+            # print("GPU FPS: {}".format(batch_size_processing / gpu_finish_time))
 
     def process():
-        radar = Radar(transform_matrix=M,
-                      inv_transform_matrix=IM,
-                      vanishing_points=[vp1, vp2, vp3],
-                      vp0_t=vp0_t,
-                      image_size=img_size,
-                      projector=None,
-                      video_fps=video_fps,
-                      result_path=result_dir,
-                      result_name=test_name,
-                      camera_calib_structure=camera_calibration)
         while not e_stop.is_set():
             try:
                 frames = q_frames.get(timeout=TIMEOUT)
@@ -168,7 +163,10 @@ def batch_test_video(inferer: Inferer,
     reader.join()
     predictor.join()
     processor.join()
-    print("Average GPU time:", np.mean(avg_fps), ", for ", video_path)
+    mean_fps = int(np.mean(avg_fps))
+    with open(os.path.join(result_dir, 'avg_fps_' + test_name + '.txt'), 'a') as f:
+        f.write("Average GPU time:" + str(mean_fps) + ", for " + video_path + "\n")
+    print("Average GPU time:", mean_fps, ", for ", video_path)
 
 
 if __name__ == "__main__":
@@ -177,8 +175,8 @@ if __name__ == "__main__":
     calib_list = []
     store_results_list = []
     road_mask_list = []
-    video_path = "home/k/kocur15/data/2016-ITS-BrnoCompSpeed/dataset"
-    results_path = "/home/m/macko70/projects/masters/dataset/results"
+    video_path = "/home/maco/Documents/BrnoCompSpeed/dataset"
+    results_path = "/home/maco/Documents/BrnoCompSpeed/results"
 
     for i in range(4, 7):
         dir_list = ['session{}_center'.format(i), 'session{}_left'.format(i), 'session{}_right'.format(i)]
@@ -197,7 +195,8 @@ if __name__ == "__main__":
                       img_size=args.yolo_img_size,
                       half=args.half)
 
-    for vid_path, calib_path, store_results_path, mask_path in zip(vid_list, calib_list, store_results_list, road_mask_list):
+    for vid_path, calib_path, store_results_path, mask_path in zip(vid_list, calib_list, store_results_list,
+                                                                   road_mask_list):
         start_processing = time.time()
         print("Processing: {}".format(vid_path))
         batch_test_video(inferer,
@@ -209,4 +208,3 @@ if __name__ == "__main__":
                          args.test_name,
                          args.batch_size_processing)
         print("Finished. Processing time: {}".format(time.time() - start_processing))
-

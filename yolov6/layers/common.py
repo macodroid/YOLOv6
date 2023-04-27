@@ -21,26 +21,6 @@ class SiLU(nn.Module):
         return x * torch.sigmoid(x)
 
 
-class Linear(nn.Module):
-    '''Linear layer with SiLU activation'''
-
-    def __init__(self, in_features, out_features, bias=True):
-        super().__init__()
-        self.linear = nn.Linear(in_features, out_features, bias)
-        self.bn = nn.BatchNorm1d(out_features)
-        self.act = SiLU()
-        self.dropout = nn.Dropout(0.2)
-
-    def forward(self, x):
-        return self.dropout(
-            self.act(
-                self.bn(
-                    self.linear(x)
-                )
-            )
-        )
-
-
 class Conv(nn.Module):
     '''Normal Conv with SiLU activation'''
 
