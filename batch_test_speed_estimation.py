@@ -20,7 +20,7 @@ def get_args_parser(add_help=True):
     parser.add_argument('--weights', type=str, default='weights/yolov6s.pt', help='model path(s) for inference.')
     parser.add_argument('--source', type=str, default='data/images', help='the source path, e.g. image-file/dir.')
     parser.add_argument('--yaml', type=str, default='data/bcs.yaml', help='data yaml file.')
-    parser.add_argument('--yolo-img-size', nargs='+', type=int, default=[352, 640],
+    parser.add_argument('--yolo-img-size', nargs='+', type=int, default=[488, 640],
                         help='the image-size(h,w) in inference size.')
     parser.add_argument('--img-size', nargs='+', type=int, default=[960, 540],
                         help='The image size (h,w) for inference.')
@@ -29,6 +29,7 @@ def get_args_parser(add_help=True):
                         help='whether to use FP16 half-precision inference.')
     parser.add_argument('--camera-calib-file', type=str, default='data/camera_calibration.yaml',
                         help='camera calibration file.')
+    parser.add_argument('--show-video', type=bool, default='Show video of inference with 3D bouding boxes.')
     parser.add_argument('--output_path', default=None, help='Path to output video')
     parser.add_argument('--vid_path', type=str, help='Path to video')
     parser.add_argument('--road-mask-path', type=str, help='Path to road mask')
@@ -50,6 +51,7 @@ def batch_test_video(inferer: Inferer,
                      img_size: tuple,
                      result_dir: str,
                      test_name: str,
+                     show_video: bool = True,
                      batch_size_processing: int = 32,
                      video_fps: int = 50,
                      ):
@@ -148,9 +150,10 @@ def batch_test_video(inferer: Inferer,
                 break
             for i, (frame, box, f) in enumerate(zip(frames, bbox_2d, fub)):
                 image_b = radar.process_frame(box, f, frame)
-                # cv2.imshow('frame', image_b)
-                # if cv2.waitKey(1) & 0xFF == ord('q'):
-                #     e_stop.set()
+                if show_video:
+                    cv2.imshow('frame', image_b)
+                    if cv2.waitKey(1) & 0xFF == ord('q'):
+                        e_stop.set()
 
     reader = Thread(target=read_frames)
     predictor = Thread(target=predict)

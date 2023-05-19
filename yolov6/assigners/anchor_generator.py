@@ -7,6 +7,7 @@ def generate_anchors(feats, fpn_strides, grid_cell_size=5.0, grid_cell_offset=0.
     anchor_points = []
     stride_tensor = []
     num_anchors_list = []
+    fpn_strides = list(fpn_strides)
     assert feats is not None
     if is_eval:
         for i, stride in enumerate(fpn_strides):

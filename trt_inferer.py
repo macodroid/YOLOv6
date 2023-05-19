@@ -119,22 +119,9 @@ class TrtInferer:
         pred_results = (output[2], output[1])
         det, fub = non_max_suppression(pred_results, 0.65, 0.55, max_det=1000)
 
-        # for i in range(len(det[0])):
-        #     if len(det[i]):
-        #         det[i, :4] = self.rescale(processed_imgs.shape[2:], det[i, :4], imgs.shape).round()
-        #     bboxs.append(det[i][:, :4].detach().cpu().numpy())
-        #     fubs.append(fub[i].detach().cpu().numpy())
-        # return bboxs, fubs
-
         for i in range(len(det)):
             if len(det[i]):
                 det[i][:, :4] = self.rescale(processed_imgs.shape[2:], det[i][:, :4], imgs[i].shape).round()
             bboxs.append(det[i][:, :4].detach().cpu().numpy())
             fubs.append(fub[i].detach().cpu().numpy())
         return bboxs, fubs
-        # for i in range(len(det)):
-        #     if len(det[i]):
-        #         det[i][:, :4] = self.rescale(processed_imgs.shape[2:], det[i][:, :4], imgs[i].shape).round()
-        #     bboxs.append(det[i][:, :4].detach().cpu().numpy())
-        #     fubs.append(fub[i].detach().cpu().numpy())
-        # return bboxs, fubs

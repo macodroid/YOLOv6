@@ -141,7 +141,6 @@ class Trainer:
         # forward
         with amp.autocast(enabled=self.device != 'cpu'):
             preds, s_featmaps = self.model(images)
-            # -------- THIS PART IS NOT IMPLEMENTED FOR FUB ------------
             if self.args.distill:
                 with torch.no_grad():
                     t_preds, t_featmaps = self.teacher_model(images)
@@ -156,7 +155,6 @@ class Trainer:
                                                                     step_num)  # YOLOv6_ab
                 total_loss += total_loss_ab
                 loss_items += loss_items_ab
-            # ---------------- END OF THE PART --------------------
             else:
                 total_loss, loss_items = self.compute_loss(preds, targets, epoch_num, step_num)  # YOLOv6_af
             if self.rank != -1:
