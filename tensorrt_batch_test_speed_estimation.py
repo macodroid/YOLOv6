@@ -7,10 +7,10 @@ from threading import Event, Thread
 import cv2
 import numpy as np
 
-from radar import Radar
+from transform_3D_utils.radar import Radar
 from trt_inferer import TrtInferer
 from utils import get_calibration_params, compute_camera_calibration, get_transform_matrix_with_criterion
-from yolov6.utils.events import LOGGER
+from YOLOv6.yolov6.utils.events import LOGGER
 
 TIMEOUT = 20
 
@@ -34,8 +34,10 @@ def get_args_parser(add_help=True):
                         help='Process video offline, output will be save just in the json file')
     parser.add_argument('--video-fps', type=int, default=50, help='Video FPS')
     parser.add_argument('--test-name', type=str, default='yolov6_3d_qarepvgg_23', help='Test name')
-    parser.add_argument('--result-dir', type=str, default='', help='Result directory')
-    parser.add_argument('--batch-size-processing', type=int, default=32, help='Batch size for processing')
+    parser.add_argument('--root_dir_video_path', type=str, default='',
+                        help='Root directory of videos. Where are sessions folders located')
+    parser.add_argument('--root_dir_results_path', type=int, default=32,
+                        help='Root directory of results. For each test the directory will be created')
     args = parser.parse_args()
     LOGGER.info(args)
     return args
@@ -176,16 +178,16 @@ if __name__ == "__main__":
     calib_list = []
     store_results_list = []
     road_mask_list = []
-    video_path = "/home/maco/Documents/BrnoCompSpeed/dataset"
-    results_path = "/home/maco/Documents/BrnoCompSpeed/results"
+    video_path_root_dir = args.video_path_root_dir
+    results_path_root_dir = args.results_path_root_dir
 
     for i in range(4, 7):
         dir_list = ['session{}_center'.format(i), 'session{}_left'.format(i), 'session{}_right'.format(i)]
-        vid_list.extend([os.path.join(video_path, d, 'video.avi') for d in dir_list])
-        road_mask_list.extend([os.path.join(video_path, d, 'video_mask.png') for d in dir_list])
+        vid_list.extend([os.path.join(video_path_root_dir, d, 'video.avi') for d in dir_list])
+        road_mask_list.extend([os.path.join(video_path_root_dir, d, 'video_mask.png') for d in dir_list])
         calib_list.extend(
-            [os.path.join(results_path, d, 'system_SochorCVIU_Edgelets_BBScale_Reg.json') for d in dir_list])
-        store_results_list.extend([os.path.join(results_path, d) for d in dir_list])
+            [os.path.join(results_path_root_dir, d, 'system_SochorCVIU_Edgelets_BBScale_Reg.json') for d in dir_list])
+        store_results_list.extend([os.path.join(results_path_root_dir, d) for d in dir_list])
 
     trt_inferer = TrtInferer(trt_engine_path=args.trt_model, image_size=args.yolo_img_size, stride=32, half=args.half)
 

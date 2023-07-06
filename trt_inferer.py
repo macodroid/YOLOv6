@@ -7,8 +7,8 @@ os.environ['CUDA_MODULE_LOADING'] = 'LAZY'
 import tensorrt as trt
 import torch
 
-from yolov6.data.data_augment import letterbox
-from yolov6.utils.nms import non_max_suppression
+from YOLOv6.yolov6.data.data_augment import letterbox
+from YOLOv6.yolov6.utils.nms import non_max_suppression
 
 
 class TrtInferer:
