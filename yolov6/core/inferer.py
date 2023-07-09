@@ -15,28 +15,27 @@ from tqdm import tqdm
 
 from yolov6.data.data_augment import letterbox
 from yolov6.layers.common import DetectBackend
-from yolov6.utils.events import LOGGER, load_yaml
+from yolov6.utils.events import LOGGER
 from yolov6.utils.nms import non_max_suppression
 
 
 class Inferer:
-    def __init__(self, source, webcam, webcam_addr, weights, device, yaml, img_size, half):
+    def __init__(self, model, yolo_img_size, half, device='0'):
 
         self.__dict__.update(locals())
 
         # Init model
         self.device = device
-        self.img_size = img_size
+        self.yolo_img_size = yolo_img_size
         cuda = self.device != 'cpu' and torch.cuda.is_available()
         self.device = torch.device(f'cuda:{device}' if cuda else 'cpu')
-        self.model = DetectBackend(weights, device=self.device)
+        self.model = DetectBackend(model, device=self.device)
         self.stride = self.model.stride
-        self.class_names = load_yaml(yaml)['names']
-        self.img_size = self.check_img_size(self.img_size, s=self.stride)  # check image size
+        self.yolo_img_size = self.check_img_size(self.yolo_img_size, s=self.stride)  # check image size
         self.half = half
 
         # Switch model to deploy status
-        self.model_switch(self.model.model, self.img_size)
+        self.model_switch(self.model.model, self.yolo_img_size)
 
         # Half precision
         if self.half & (self.device.type != 'cpu'):
@@ -46,14 +45,8 @@ class Inferer:
             self.half = False
 
         if self.device.type != 'cpu':
-            self.model(torch.zeros(1, 3, *self.img_size).to(self.device).type_as(
+            self.model(torch.zeros(1, 3, *self.yolo_img_size).to(self.device).type_as(
                 next(self.model.model.parameters())))  # warmup
-
-        # Load data
-        self.webcam = webcam
-        self.webcam_addr = webcam_addr
-        # self.files = LoadData(source, webcam, webcam_addr)
-        self.source = source
 
     def model_switch(self, model, img_size):
         ''' Model switch to deploy status '''
@@ -64,7 +57,7 @@ class Inferer:
 
         LOGGER.info("Switch model to deploy modality.")
 
-    def simple_inference(self, images, conf_thres, iou_thres, classes, agnostic_nms, max_det):
+    def simple_inference(self, images, conf_thres, iou_thres, classes=None, agnostic_nms=None, max_det=1000):
         bboxs, fubs = [], []
         imgs, img_srcs = self.process_batch_images(images)
         imgs = imgs.to(self.device)
@@ -86,7 +79,7 @@ class Inferer:
         vid_path, vid_writer, windows = None, None, []
         fps_calculator = CalcFPS()
         for img_src, img_path, vid_cap in tqdm(self.files):
-            img, img_src = self.process_image(img_src, self.img_size, self.stride, self.half)
+            img, img_src = self.process_image(img_src, self.yolo_img_size, self.stride, self.half)
             img = img.to(self.device)
             if len(img.shape) == 3:
                 img = img[None]
@@ -122,14 +115,6 @@ class Inferer:
                         line = (cls, *xywh, conf)
                         with open(txt_path + '.txt', 'a') as f:
                             f.write(('%g ' * len(line)).rstrip() % line + '\n')
-
-                    if save_img:
-                        class_num = int(cls)  # integer class
-                        label = None if hide_labels else (
-                            self.class_names[class_num] if hide_conf else f'{self.class_names[class_num]} {conf:.2f}')
-
-                        self.plot_box_and_label(img_ori, max(round(sum(img_ori.shape) / 2 * 0.003), 2), xyxy, label,
-                                                color=self.generate_colors(class_num, True))
 
                 img_src = np.asarray(img_ori)
 
@@ -180,7 +165,7 @@ class Inferer:
         processed_imgs = []
         imgs = []
         for img in images:
-            img, img_src = self.process_image(img, self.img_size, self.stride, self.half)
+            img, img_src = self.process_image(img, self.yolo_img_size, self.stride, self.half)
             processed_imgs.append(img)
             imgs.append(img_src)
         return torch.stack(processed_imgs, dim=0), np.array(imgs)

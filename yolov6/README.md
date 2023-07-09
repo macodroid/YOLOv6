@@ -1,36 +1,46 @@
 <p align="center">
-  <img src="assets/banner-YOLO.png" align="middle" width = "1000" />
+  <img src="../assets/banner-YOLO.png" align="middle" width = "1000" />
 </p>
 
-简体中文 | [English](README.md)
+English | [简体中文](README_cn.md)
+
+ <br>
+
+ <div>
+    </a>
+    <a href="https://colab.research.google.com/github/meituan/YOLOv6/blob/main/turtorial.ipynb"><img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"></a>
+     <a href="https://www.kaggle.com/code/housanduo/yolov6"><img src="https://kaggle.com/static/images/open-in-kaggle.svg" alt="Open In Kaggle"></a>
+  </div>
+ <br>
 
 ## YOLOv6
 
-官方论文: 
+Implementation of paper:
 - [YOLOv6 v3.0: A Full-Scale Reloading](https://arxiv.org/abs/2301.05586) 🔥
 - [YOLOv6: A Single-Stage Object Detection Framework for Industrial Applications](https://arxiv.org/abs/2209.02976)
 
 <p align="center">
-  <img src="assets/speed_comparision_v3.png" align="middle" width = "1000" />
+  <img src="../assets/speed_comparision_v3.png" align="middle" width = "1000" />
 </p>
 
 
-## 更新日志
-- [2023.03.10] 发布 [YOLOv6-Face](https://github.com/meituan/YOLOv6/tree/yolov6-face). 🔥 [人脸检测模型指标](https://github.com/meituan/YOLOv6/blob/yolov6-face/README_cn.md#widerface-%E6%A8%A1%E5%9E%8B%E6%8C%87%E6%A0%87)
-- [2023.03.02] 更新 [基础版模型](configs/base/READM_cn.md) 到 3.0 版本
-- [2023.01.06] 发布大分辨率 P6 模型以及对 P5 模型做了全面的升级 ⭐️ [模型指标](#模型指标)
-    - 添加 BiC 模块 和 SimCSPSPPF 模块以增强检测网络颈部的表征能力。
-    - 提出一个锚点辅助训练 (AAT) 策略。
-    - 为 YOLOv6 小模型引入一个新的自蒸馏训练策略。
-    - 扩展 YOLOv6 并在 COCO 上取得了实时目标检测 SOTA 的精度和速度。
-- [2022.11.04] 发布 [基础版模型](configs/base/README_cn.md) 简化训练部署流程
-- [2022.09.06] 定制化的模型量化加速方法 🚀 [量化教程](./tools/qat/README.md)
-- [2022.09.05] 发布 M/L 模型，并且进一步提高了 N/T/S 模型的性能  
-- [2022.06.23] 发布 N/T/S v1.0 版本模型
+## What's New
+- [2023.03.10] Release [YOLOv6-Face](https://github.com/meituan/YOLOv6/tree/yolov6-face). 🔥 [Performance](https://github.com/meituan/YOLOv6/tree/yolov6-face#performance-on-widerface)
+- [2023.03.02] Update [base models](../configs/base/README.md) to version 3.0.
+- [2023.01.06] Release P6 models and enhance the performance of P5 models. ⭐️ [Benchmark](#Benchmark)
+    - Renew the neck of the detector with a BiC module and SimCSPSPPF Block.
+    - Propose an anchor-aided training (AAT) strategy.
+    - Involve a new self-distillation strategy for small models of YOLOv6.
+    - Expand YOLOv6 and hit a new
+SOTA performance on the COCO dataset.
+- [2022.11.04] Release [base models](../configs/base/README.md) to simplify the training and deployment process.
+- [2022.09.06] Customized quantization methods. 🚀 [Quantization Tutorial](../tools/qat/README.md)
+- [2022.09.05] Release M/L models and update N/T/S models with enhanced performance. 
+- [2022.06.23] Release N/T/S models with excellent performance.
 
-## 模型指标
-| 模型                                                       | 输入尺寸 | mAP<sup>val<br/>0.5:0.95              | 速度<sup>T4<br/>trt fp16 b1 <br/>(fps) | 速度<sup>T4<br/>trt fp16 b32 <br/>(fps) | Params<br/><sup> (M) | FLOPs<br/><sup> (G) |
-| :----------------------------------------------------------- | ---- | :------------------------------------ | --------------------------------------- | ---------------------------------------- | -------------------- | ------------------- |
+## Benchmark
+| Model                                                        | Size | mAP<sup>val<br/>0.5:0.95 | Speed<sup>T4<br/>trt fp16 b1 <br/>(fps) | Speed<sup>T4<br/>trt fp16 b32 <br/>(fps) | Params<br/><sup> (M) | FLOPs<br/><sup> (G) |
+| :----------------------------------------------------------- | ---- | :----------------------- | --------------------------------------- | ---------------------------------------- | -------------------- | ------------------- |
 | [**YOLOv6-N**](https://github.com/meituan/YOLOv6/releases/download/0.3.0/yolov6n.pt) | 640  | 37.5                     | 779                                     | 1187                                     | 4.7                  | 11.4                |
 | [**YOLOv6-S**](https://github.com/meituan/YOLOv6/releases/download/0.3.0/yolov6s.pt) | 640  | 45.0                     | 339                                     | 484                                      | 18.5                 | 45.3                |
 | [**YOLOv6-M**](https://github.com/meituan/YOLOv6/releases/download/0.3.0/yolov6m.pt) | 640  | 50.0                     | 175                                     | 226                                      | 34.9                 | 85.8                |
@@ -40,21 +50,20 @@
 | [**YOLOv6-S6**](https://github.com/meituan/YOLOv6/releases/download/0.3.0/yolov6s6.pt) | 1280 | 50.3                     | 98                                      | 108                                      | 41.4                 | 198.0               |
 | [**YOLOv6-M6**](https://github.com/meituan/YOLOv6/releases/download/0.3.0/yolov6m6.pt) | 1280 | 55.2                     | 47                                      | 55                                       | 79.6                 | 379.5               |
 | [**YOLOv6-L6**](https://github.com/meituan/YOLOv6/releases/download/0.3.0/yolov6l6.pt) | 1280 | 57.2                     | 26                                      | 29                                       | 140.4                | 673.4               |
-
 <details>
-<summary>表格笔记</summary>
+<summary>Table Notes</summary>
 
-- 除了 YOLOv6-N6/S6 模型是训练了300轮的结果，其余模型均为自蒸馏训练之后的结果；  
-- mAP 和速度指标是在 [COCO val2017](https://cocodataset.org/#download)  数据集上评估的，P5模型输入分辨率为 640×640，P6模型输入分辨率为 1280×1280；
-- 速度是在 T4 上测试的，TensorRT 版本为 7.2；
-- 复现 YOLOv6 的速度指标，请查看 [速度测试](./docs/Test_speed.md) 教程；
-- YOLOv6 的参数和计算量是在推理模式下计算的；
+- All checkpoints are trained with self-distillation except for YOLOv6-N6/S6 models trained to 300 epochs without distillation.  
+- Results of the mAP and speed are evaluated on [COCO val2017](https://cocodataset.org/#download) dataset with the input resolution of 640×640 for P5 models and 1280x1280 for P6 models.
+- Speed is tested with TensorRT 7.2 on T4.
+- Refer to [Test speed](../docs/Test_speed.md) tutorial to reproduce the speed results of YOLOv6.
+- Params and FLOPs of YOLOv6 are estimated on deployed models.
 </details>
 
 <details>
-<summary>旧版模型</summary>
+<summary>Legacy models</summary>
 
-| 模型                                                       | 输入尺寸 | mAP<sup>val<br/>0.5:0.95              | 速度<sup>T4<br/>trt fp16 b1 <br/>(fps) | 速度<sup>T4<br/>trt fp16 b32 <br/>(fps) | Params<br/><sup> (M) | FLOPs<br/><sup> (G) |
+| Model                                                        | Size | mAP<sup>val<br/>0.5:0.95              | Speed<sup>T4<br/>trt fp16 b1 <br/>(fps) | Speed<sup>T4<br/>trt fp16 b32 <br/>(fps) | Params<br/><sup> (M) | FLOPs<br/><sup> (G) |
 | :----------------------------------------------------------- | ---- | :------------------------------------ | --------------------------------------- | ---------------------------------------- | -------------------- | ------------------- |
 | [**YOLOv6-N**](https://github.com/meituan/YOLOv6/releases/download/0.2.0/yolov6n.pt) | 640  | 35.9<sup>300e</sup><br/>36.3<sup>400e | 802                                     | 1234                                     | 4.3                  | 11.1                |
 | [**YOLOv6-T**](https://github.com/meituan/YOLOv6/releases/download/0.2.0/yolov6t.pt) | 640  | 40.3<sup>300e</sup><br/>41.1<sup>400e | 449                                     | 659                                      | 15.0                 | 36.7                |
@@ -62,11 +71,10 @@
 | [**YOLOv6-M**](https://github.com/meituan/YOLOv6/releases/download/0.2.0/yolov6m.pt) | 640  | 49.5                                  | 179                                     | 233                                      | 34.3                 | 82.2                |
 | [**YOLOv6-L-ReLU**](https://github.com/meituan/YOLOv6/releases/download/0.2.0/yolov6l_relu.pt) | 640  | 51.7                                  | 113                                     | 149                                      | 58.5                 | 144.0               |
 | [**YOLOv6-L**](https://github.com/meituan/YOLOv6/releases/download/0.2.0/yolov6l.pt) | 640  | 52.5                                  | 98                                      | 121                                      | 58.5                 | 144.0               |
-- 速度是在 T4 上测试的，TensorRT 版本为 7.2；
+- Speed is tested with TensorRT 7.2 on T4.
+### Quantized model 🚀
 
-### 量化模型
-
-| 模型                 | 输入尺寸 | 精度 | mAP<sup>val<br/>0.5:0.95 | 速度<sup>T4<br/>trt b1 <br/>(fps) | 速度<sup>T4<br/>trt b32 <br/>(fps) |
+| Model                 | Size | Precision | mAP<sup>val<br/>0.5:0.95 | Speed<sup>T4<br/>trt b1 <br/>(fps) | Speed<sup>T4<br/>trt b32 <br/>(fps) |
 | :-------------------- | ---- | --------- | :----------------------- | ---------------------------------- | ----------------------------------- |
 | **YOLOv6-N RepOpt** | 640  | INT8      | 34.8                     | 1114                               | 1828                                |
 | **YOLOv6-N**        | 640  | FP16      | 35.9                     | 802                                | 1234                                |
@@ -75,16 +83,15 @@
 | **YOLOv6-S RepOpt** | 640  | INT8      | 43.3                     | 619                                | 924                                 |
 | **YOLOv6-S**        | 640  | FP16      | 43.5                     | 377                                | 541                                 |
 
-- 速度是在 T4 上测试的，TensorRT 版本为 8.4；
-- 精度是在训练 300 epoch 的模型上测试的；
+- Speed is tested with TensorRT 8.4 on T4.
+- Precision is figured on models for 300 epochs.
 
 </details>
 
 
-## 快速开始
-
+## Quick Start
 <details>
-<summary> 安装</summary>
+<summary> Install</summary>
 
 
 ```shell
@@ -94,17 +101,19 @@ pip install -r requirements.txt
 ```
 </details>
 
-<details>
-<summary> 在 COCO 数据集上复现我们的结果</summary>
 
-请参考教程 [训练 COCO 数据集](./docs/Train_coco_data.md).
+
+<details>
+<summary> Reproduce our results on COCO</summary>
+
+Please refer to [Train COCO Dataset](../docs/Train_coco_data.md).
 
 </details>
 
 <details open>
-<summary> 在自定义数据集上微调模型 </summary>
+<summary> Finetune on custom data</summary>
 
-单卡
+Single GPU
 
 ```shell
 # P5 models
@@ -113,7 +122,7 @@ python tools/train.py --batch 32 --conf configs/yolov6s_finetune.py --data data/
 python tools/train.py --batch 32 --conf configs/yolov6s6_finetune.py --data data/dataset.yaml --img 1280 --device 0
 ```
 
-多卡 （我们推荐使用 DDP 模式）
+Multi GPUs (DDP mode recommended)
 
 ```shell
 # P5 models
@@ -121,10 +130,10 @@ python -m torch.distributed.launch --nproc_per_node 8 tools/train.py --batch 256
 # P6 models
 python -m torch.distributed.launch --nproc_per_node 8 tools/train.py --batch 128 --conf configs/yolov6s6_finetune.py --data data/dataset.yaml --img 1280 --device 0,1,2,3,4,5,6,7
 ```
-- fuse_ab: 增加anchor-based预测分支并使用联合锚点训练模式 (P6模型暂不支持此功能)
-- conf: 配置文件路径，里面包含网络结构、优化器配置、超参数信息。如果您是在自己的数据集训练，我们推荐您使用yolov6n/s/m/l_finetune.py配置文件；
-- data: 数据集配置文件，以 COCO 数据集为例，您可以在 [COCO](http://cocodataset.org) 下载数据, 在这里下载 [YOLO 格式标签](https://github.com/meituan/YOLOv6/releases/download/0.1.0/coco2017labels.zip)；
-- 确保您的数据集按照下面这种格式来组织；
+- fuse_ab: add anchor-based auxiliary branch and use Anchor Aided Training Mode (Not supported on P6 models currently)
+- conf: select config file to specify network/optimizer/hyperparameters. We recommend to apply yolov6n/s/m/l_finetune.py when training on your custom dataset.
+- data: prepare dataset and specify dataset paths in data.yaml ( [COCO](http://cocodataset.org), [YOLO format coco labels](https://github.com/meituan/YOLOv6/releases/download/0.1.0/coco2017labels.zip) )
+- make sure your dataset structure as follows:
 ```
 ├── coco
 │   ├── annotations
@@ -136,37 +145,38 @@ python -m torch.distributed.launch --nproc_per_node 8 tools/train.py --batch 128
 │   ├── labels
 │   │   ├── train2017
 │   │   ├── val2017
+│   ├── LICENSE
+│   ├── README.txt
 ```
 
 </details>
 
 <details>
-<summary>恢复训练</summary>
+<summary>Resume training</summary>
 
-
-如果您的训练进程中断了，您可以这样恢复先前的训练进程。
+If your training process is corrupted, you can resume training by
 ```
-# 单卡训练
+# single GPU training.
 python tools/train.py --resume
 
-# 多卡训练
+# multi GPU training.
 python -m torch.distributed.launch --nproc_per_node 8 tools/train.py --resume
 ```
-上面的命令将自动在 YOLOv6 目录中找到最新保存的模型，然后恢复训练。
+Above command will automatically find the latest checkpoint in YOLOv6 directory, then resume the training process. 
 
-您也可以通过 `--resume` 参数指定要恢复的模型路径
+Your can also specify a checkpoint path to `--resume` parameter by
 ```
-# 记得把 /path/to/your/checkpoint/path  替换为您要恢复训练的模型权重路径
+# remember to replace /path/to/your/checkpoint/path to the checkpoint path which you want to resume training.
 --resume /path/to/your/checkpoint/path
 ```
-这将从您提供的模型路径恢复训练。
+This will resume from the specific checkpoint you provide.
 
 </details>
 
+<details open>
+<summary> Evaluation</summary>
 
-<details>
-<summary> 评估</summary>
-在 COCO val2017 数据集上复现我们的结果（输入分辨率 640x640 或 1280x1280）
+Reproduce mAP on COCO val2017 dataset with 640×640 or 1280x1280 resolution
 
 ```shell
 # P5 models
@@ -174,19 +184,19 @@ python tools/eval.py --data data/coco.yaml --batch 32 --weights yolov6s.pt --tas
 # P6 models
 python tools/eval.py --data data/coco.yaml --batch 32 --weights yolov6s6.pt --task val --reproduce_640_eval --img 1280
 ```
-- verbose: 如果要打印每一类的精度信息，请设置为 True；
-- do_coco_metric: 设置 True / False 来打开或关闭 pycocotools 的评估；
-- do_pr_metric: 设置 True / False 来显示或不显示精度和召回的指标；
-- config-file: 指定一个包含所有评估参数的配置文件，例如 [yolov6n_with_eval_params.py](configs/experiment/yolov6n_with_eval_params.py)
+- verbose: set True to print mAP of each classes.
+- do_coco_metric: set True / False to enable / disable pycocotools evaluation method.
+- do_pr_metric: set True / False to print or not to print the precision and recall metrics.
+- config-file: specify a config file to define all the eval params, for example: [yolov6n_with_eval_params.py](../configs/experiment/yolov6n_with_eval_params.py)
 </details>
 
 
 <details>
-<summary>推理</summary>
+<summary>Inference</summary>
 
-首先，从 [release页面](https://github.com/meituan/YOLOv6/releases/tag/0.3.0)  下载一个训练好的模型权重文件，或选择您自己训练的模型；
+First, download a pretrained model from the YOLOv6 [release](https://github.com/meituan/YOLOv6/releases/tag/0.3.0) or use your trained model to do inference.
 
-然后，通过 `tools/infer.py`文件进行推理。
+Second, run inference with `tools/infer.py`
 
 ```shell
 # P5 models
@@ -194,51 +204,63 @@ python tools/infer.py --weights yolov6s.pt --source img.jpg / imgdir / video.mp4
 # P6 models
 python tools/infer.py --weights yolov6s6.pt --img 1280 1280 --source img.jpg / imgdir / video.mp4
 ```
-如果您想使用本地摄像头或者网络摄像头，您可以运行:
+If you want to inference on local camera or  web camera, you can run:
 ```shell
 # P5 models
 python tools/infer.py --weights yolov6s.pt --webcam --webcam-addr 0
 # P6 models
 python tools/infer.py --weights yolov6s6.pt --img 1280 1280 --webcam --webcam-addr 0
 ```
-`webcam-addr` 可以是本地摄像头的 ID，或者是 RTSP 地址。
+`webcam-addr` can be local camera number id or rtsp address.
 </details>
 
 <details>
-<summary> 部署 </summary>
+<summary> Deployment</summary>
 
-*  [ONNX](./deploy/ONNX)
-*  [OpenCV Python/C++](./deploy/ONNX/OpenCV)
-*  [OpenVINO](./deploy/OpenVINO)
-*  [TensorRT](./deploy/TensorRT)
+*  [ONNX](../deploy/ONNX)
+*  [OpenCV Python/C++](../deploy/ONNX/OpenCV)
+*  [OpenVINO](../deploy/OpenVINO)
+*  [TensorRT](../deploy/TensorRT)
 </details>
 
 <details open>
-<summary> 教程 </summary>
+<summary> Tutorials</summary>
 
-*  [用户手册（中文版）](https://yolov6-docs.readthedocs.io/zh_CN/latest/) 
-*  [训练 COCO 数据集](./docs/Train_coco_data.md)
-*  [训练自定义数据集](./docs/Train_custom_data.md)
-*  [测速](./docs/Test_speed.md)
-*  [ YOLOv6 量化教程](./docs/Tutorial%20of%20Quantization.md)
+*  [User Guide(zh_CN)](https://yolov6-docs.readthedocs.io/zh_CN/latest/) 
+*  [Train COCO Dataset](../docs/Train_coco_data.md)
+*  [Train custom data](../docs/Train_custom_data.md)
+*  [Test speed](../docs/Test_speed.md)
+*  [Tutorial of Quantization for YOLOv6](../docs/Tutorial%20of%20Quantization.md)
 </details>
-
 
 <details>
-<summary> 第三方资源 </summary>
+<summary> Third-party resources</summary>
 
  * YOLOv6 NCNN Android app demo: [ncnn-android-yolov6](https://github.com/FeiGeChuanShu/ncnn-android-yolov6) from [FeiGeChuanShu](https://github.com/FeiGeChuanShu)
+
  * YOLOv6 ONNXRuntime/MNN/TNN C++: [YOLOv6-ORT](https://github.com/DefTruth/lite.ai.toolkit/blob/main/lite/ort/cv/yolov6.cpp), [YOLOv6-MNN](https://github.com/DefTruth/lite.ai.toolkit/blob/main/lite/mnn/cv/mnn_yolov6.cpp) and [YOLOv6-TNN](https://github.com/DefTruth/lite.ai.toolkit/blob/main/lite/tnn/cv/tnn_yolov6.cpp) from [DefTruth](https://github.com/DefTruth)
+
  * YOLOv6 TensorRT Python: [yolov6-tensorrt-python](https://github.com/Linaom1214/TensorRT-For-YOLO-Series) from [Linaom1214](https://github.com/Linaom1214)
+
  * YOLOv6 TensorRT Windows C++: [yolort](https://github.com/zhiqwang/yolov5-rt-stack/tree/main/deployment/tensorrt-yolov6) from [Wei Zeng](https://github.com/Wulingtian)
+
  * [YOLOv6 web demo](https://huggingface.co/spaces/nateraw/yolov6) on [Huggingface Spaces](https://huggingface.co/spaces) with [Gradio](https://github.com/gradio-app/gradio). [![Hugging Face Spaces](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Spaces-blue)](https://huggingface.co/spaces/nateraw/yolov6)
- * 教程: [如何用 YOLOv6 训练自己的数据集](https://blog.roboflow.com/how-to-train-yolov6-on-a-custom-dataset/) <a href="https://colab.research.google.com/drive/1YnbqOinBZV-c9I7fk_UL6acgnnmkXDMM"><img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"></a>
- * YOLOv6 在 Google Colab 上的推理 Demo [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/mahdilamb/YOLOv6/blob/main/inference.ipynb)
-</details>
 
-### [FAQ（持续更新）](https://github.com/meituan/YOLOv6/wiki/FAQ%EF%BC%88Continuously-updated%EF%BC%89)
+ * [Interactive demo](https://yolov6.dagshubusercontent.com/) on [DagsHub](https://dagshub.com) with [Streamlit](https://github.com/streamlit/streamlit) 
 
-如果您有任何问题，欢迎加入我们的微信群一起讨论交流！
+ * Tutorial: [How to train YOLOv6 on a custom dataset](https://blog.roboflow.com/how-to-train-yolov6-on-a-custom-dataset/) <a href="https://colab.research.google.com/drive/1YnbqOinBZV-c9I7fk_UL6acgnnmkXDMM"><img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"></a>
+
+ * YouTube Tutorial: [How to train YOLOv6 on a custom dataset](https://youtu.be/fFCWrMFH2UY)
+
+ * Demo of YOLOv6 inference on Google Colab [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/mahdilamb/YOLOv6/blob/main/inference.ipynb)
+
+ * Blog post: [YOLOv6 Object Detection – Paper Explanation and Inference](https://learnopencv.com/yolov6-object-detection/)
+
+   </details>
+
+### [FAQ（Continuously updated）](https://github.com/meituan/YOLOv6/wiki/FAQ%EF%BC%88Continuously-updated%EF%BC%89)
+
+If you have any questions, welcome to join our WeChat group to discuss and exchange.
 <p align="center">
-  <img src="assets/wechat_qrcode.png" align="middle" width = "1000" />
+  <img src="../assets/wechat_qrcode.png" align="middle" width = "1000" />
 </p>

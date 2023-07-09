@@ -49,7 +49,7 @@ def get_args_parser(add_help=True):
 
 @torch.no_grad()
 def run(weights=osp.join(ROOT, 'yolov6s.pt'),
-        source=osp.join(ROOT, 'data/images'),
+        source=osp.join(ROOT, '../data/images'),
         webcam=False,
         webcam_addr=0,
         yaml=None,

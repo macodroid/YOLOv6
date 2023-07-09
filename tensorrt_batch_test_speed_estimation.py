@@ -7,9 +7,9 @@ from threading import Event, Thread
 import cv2
 import numpy as np
 
-from radar import Radar
-from trt_inferer import TrtInferer
-from utils import get_calibration_params, compute_camera_calibration, get_transform_matrix_with_criterion
+from transform_3D_utils.radar import Radar
+from yolov6.trt_inferer import TrtInferer
+from transform_3D_utils.utils import get_calibration_params, compute_camera_calibration, get_transform_matrix_with_criterion
 from yolov6.utils.events import LOGGER
 
 TIMEOUT = 20
@@ -36,6 +36,10 @@ def get_args_parser(add_help=True):
     parser.add_argument('--test-name', type=str, default='yolov6_3d_qarepvgg_23', help='Test name')
     parser.add_argument('--result-dir', type=str, default='', help='Result directory')
     parser.add_argument('--batch-size-processing', type=int, default=32, help='Batch size for processing')
+    parser.add_argument('--root_dir_video_path', type=str, default='',
+                        help='Root directory of videos. Where are sessions folders located')
+    parser.add_argument('--root_dir_results_path', type=str, default='',
+                        help='Root directory of results. For each test the directory will be created')
     args = parser.parse_args()
     LOGGER.info(args)
     return args
@@ -187,7 +191,7 @@ if __name__ == "__main__":
             [os.path.join(results_path, d, 'system_SochorCVIU_Edgelets_BBScale_Reg.json') for d in dir_list])
         store_results_list.extend([os.path.join(results_path, d) for d in dir_list])
 
-    trt_inferer = TrtInferer(trt_engine_path=args.trt_model, image_size=args.yolo_img_size, stride=32, half=args.half)
+    trt_inferer = TrtInferer(trt_model=args.trt_model, image_size=args.yolo_img_size, stride=32, half=args.half)
 
     for vid_path, calib_path, store_results_path, mask_path in zip(vid_list, calib_list, store_results_list,
                                                                    road_mask_list):

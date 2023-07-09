@@ -14,7 +14,7 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 
-import eval as eval
+from yolov6 import eval as eval
 from yolov6.data.data_load import create_dataloader
 from yolov6.models.losses.loss import ComputeLoss as ComputeLoss
 from yolov6.models.losses.loss_distill import ComputeLoss as ComputeLoss_distill

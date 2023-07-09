@@ -7,19 +7,21 @@ from threading import Event, Thread
 import cv2
 import numpy as np
 
-from radar import Radar
-from utils import get_calibration_params, compute_camera_calibration, get_transform_matrix_with_criterion
+from transform_3D_utils.radar import Radar
+# I don't know why but yolov6.core.inferer need to be imported before trt_inferer \_( o.O )_/
 from yolov6.core.inferer import Inferer
 from yolov6.utils.events import LOGGER
+from yolov6.trt_inferer import TrtInferer
+from transform_3D_utils.utils import get_calibration_params, compute_camera_calibration, \
+    get_transform_matrix_with_criterion
 
 TIMEOUT = 20
 
 
 def get_args_parser(add_help=True):
     parser = argparse.ArgumentParser(description='Yolov6 3d speed measurement', add_help=add_help)
-    parser.add_argument('--weights', type=str, default='weights/yolov6s.pt', help='model path(s) for inference.')
-    parser.add_argument('--source', type=str, default='data/images', help='the source path, e.g. image-file/dir.')
-    parser.add_argument('--yaml', type=str, default='data/bcs.yaml', help='data yaml file.')
+    parser.add_argument('--tensorrt', action='store_true', help='If model for inference is TensorRT optimized.')
+    parser.add_argument('--model_path', type=str, default='weights/yolov6s.pt', help='model path(s) for inference.')
     parser.add_argument('--yolo-img-size', nargs='+', type=int, default=[488, 640],
                         help='the image-size(h,w) in inference size.')
     parser.add_argument('--img-size', nargs='+', type=int, default=[960, 540],
@@ -27,34 +29,47 @@ def get_args_parser(add_help=True):
     parser.add_argument('--iou-thres', type=float, default=0.65, help='NMS IoU threshold for inference.')
     parser.add_argument('--half', action='store_true',
                         help='whether to use FP16 half-precision inference.')
-    parser.add_argument('--camera-calib-file', type=str, default='data/camera_calibration.yaml',
-                        help='camera calibration file.')
     parser.add_argument('--show-video', type=bool, default='Show video of inference with 3D bouding boxes.')
-    parser.add_argument('--output_path', default=None, help='Path to output video')
-    parser.add_argument('--vid_path', type=str, help='Path to video')
-    parser.add_argument('--road-mask-path', type=str, help='Path to road mask')
-    parser.add_argument('--process-offline', type=bool, default=False,
-                        help='Process video offline, output will be save just in the json file')
     parser.add_argument('--video-fps', type=int, default=50, help='Video FPS')
     parser.add_argument('--test-name', type=str, default='yolov6_3d_qarepvgg_23', help='Test name')
     parser.add_argument('--result-dir', type=str, default='', help='Result directory')
-    parser.add_argument('--batch-size-processing', type=int, default=32, help='Batch size for processing')
+    parser.add_argument('--processing-batch', type=int, default=32, help='Batch size for processing')
+    parser.add_argument('--root_dir_video_path', type=str, default='',
+                        help='Root directory of videos. Where are sessions folders located')
+    parser.add_argument('--root_dir_results_path', type=str, default='',
+                        help='Root directory of results. For each test the directory will be created')
     args = parser.parse_args()
     LOGGER.info(args)
     return args
 
 
-def batch_test_video(inferer: Inferer,
-                     camera_calibration_file: str,
-                     video_path: str,
-                     road_mask_path: str,
-                     img_size: tuple,
-                     result_dir: str,
-                     test_name: str,
-                     show_video: bool = True,
-                     batch_size_processing: int = 32,
-                     video_fps: int = 50,
-                     ):
+def load_test_videos(root_dir_video_path: str, root_dir_results_path: str):
+    vid_list = []
+    calib_list = []
+    store_results_list = []
+    road_mask_list = []
+    for i in range(4, 7):
+        dir_list = ['session{}_center'.format(i), 'session{}_left'.format(i), 'session{}_right'.format(i)]
+        vid_list.extend([os.path.join(root_dir_video_path, d, 'video.avi') for d in dir_list])
+        road_mask_list.extend([os.path.join(root_dir_video_path, d, 'video_mask.png') for d in dir_list])
+        calib_list.extend(
+            [os.path.join(root_dir_results_path, d, 'system_SochorCVIU_Edgelets_BBScale_Reg.json') for d in dir_list])
+        store_results_list.extend([os.path.join(root_dir_results_path, d) for d in dir_list])
+    return vid_list, calib_list, store_results_list, road_mask_list
+
+
+def batch_process_video(inferer: Inferer,
+                        camera_calibration_file: str,
+                        video_path: str,
+                        road_mask_path: str,
+                        img_size: tuple,
+                        result_dir: str,
+                        test_name: str,
+                        show_video: bool = True,
+                        batch_size_processing: int = 32,
+                        video_fps: int = 50,
+                        iou_threshold: float = 0.65,
+                        conf_threshold: float = 0.65, ):
     avg_fps = []
     im_w, im_h = img_size
     camera_calibration = get_calibration_params(camera_calibration_file)
@@ -92,6 +107,11 @@ def batch_test_video(inferer: Inferer,
                   result_path=result_dir,
                   result_name=test_name,
                   camera_calib_structure=camera_calibration)
+
+    if isinstance(inferer, TrtInferer):
+        lambda_inferer = lambda images: inferer.infer(images)
+    else:
+        lambda_inferer = lambda images: inferer.simple_inference(images, conf_threshold, iou_threshold)
 
     q_frames = Queue(batch_size_processing)
     q_images = Queue(batch_size_processing)
@@ -131,11 +151,11 @@ def batch_test_video(inferer: Inferer,
                 break
             gpu_time = time.time()
             images = np.stack(images, axis=0)
-            bbox_2d, fub = inferer.simple_inference(images, 0.65, 0.65, None, None, 1000)
+            bbox_2d, fub = lambda_inferer(images)
             q_predict.put((bbox_2d, fub))
             gpu_finish_time = (time.time() - gpu_time)
             avg_fps.append(batch_size_processing / gpu_finish_time)
-            # print("GPU FPS: {}".format(batch_size_processing / gpu_finish_time))
+            print("GPU FPS: {}".format(batch_size_processing / gpu_finish_time))
 
     def process():
         while not e_stop.is_set():
@@ -174,40 +194,25 @@ def batch_test_video(inferer: Inferer,
 
 if __name__ == "__main__":
     args = get_args_parser()
-    vid_list = []
-    calib_list = []
-    store_results_list = []
-    road_mask_list = []
-    video_path = "/home/maco/Documents/BrnoCompSpeed/dataset"
-    results_path = "/home/maco/Documents/BrnoCompSpeed/results"
-
-    for i in range(4, 7):
-        dir_list = ['session{}_center'.format(i), 'session{}_left'.format(i), 'session{}_right'.format(i)]
-        vid_list.extend([os.path.join(video_path, d, 'video.avi') for d in dir_list])
-        road_mask_list.extend([os.path.join(video_path, d, 'video_mask.png') for d in dir_list])
-        calib_list.extend(
-            [os.path.join(results_path, d, 'system_SochorCVIU_Edgelets_BBScale_Reg.json') for d in dir_list])
-        store_results_list.extend([os.path.join(results_path, d) for d in dir_list])
-
-    inferer = Inferer(source=None,
-                      webcam=None,
-                      webcam_addr=None,
-                      weights=args.weights,
-                      device="0",
-                      yaml=args.yaml,
-                      img_size=args.yolo_img_size,
-                      half=args.half)
+    root_dir_video_path = args.root_dir_video_path
+    root_dir_results_path = args.root_dir_results_path
+    vid_list, calib_list, store_results_list, road_mask_list = load_test_videos(root_dir_video_path,
+                                                                                root_dir_results_path)
+    if args.model_path.endswith(".trt"):
+        inferer = TrtInferer(trt_model=args.model_path, image_size=args.yolo_img_size, half=args.half)
+    else:
+        inferer = Inferer(model=args.model_path, yolo_img_size=args.yolo_img_size, half=args.half)
 
     for vid_path, calib_path, store_results_path, mask_path in zip(vid_list, calib_list, store_results_list,
                                                                    road_mask_list):
         start_processing = time.time()
         print("Processing: {}".format(vid_path))
-        batch_test_video(inferer,
-                         calib_path,
-                         vid_path,
-                         mask_path,
-                         args.img_size,
-                         store_results_path,
-                         args.test_name,
-                         args.batch_size_processing)
+        batch_process_video(inferer,
+                            calib_path,
+                            vid_path,
+                            mask_path,
+                            args.img_size,
+                            store_results_path,
+                            args.test_name,
+                            args.processing_batch)
         print("Finished. Processing time: {}".format(time.time() - start_processing))

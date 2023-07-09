@@ -5,8 +5,8 @@ import os.path
 import cv2
 import numpy as np
 
-from tracker import Tracker
-from utils import intersection, line
+from transform_3D_utils.tracker import Tracker
+from transform_3D_utils.utils import intersection, line
 
 font = cv2.FONT_HERSHEY_SIMPLEX
 
@@ -272,14 +272,3 @@ class Radar:
         else:
             max_tracker.assign(box, self.frame)
             return max_tracker
-
-    # def dubska_point(self, image_b):
-    #     for car in self.dubska_cars:
-    #         try:
-    #             idx = car["frames"].index(self.frame)
-    #             posX = car["posX"][idx]
-    #             posY = car["posY"][idx]
-    #             image_b = cv2.circle(image_b, (int(posX), int(posY)), 5, (255, 0, 0), 3)
-    #         except ValueError:
-    #             pass
-    #     return image_b

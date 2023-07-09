@@ -12,8 +12,8 @@ from yolov6.utils.nms import non_max_suppression
 
 
 class TrtInferer:
-    def __init__(self, trt_engine_path, image_size, device='0', stride=32, half=True):
-        self.trt_engine_path = trt_engine_path
+    def __init__(self, trt_model, image_size, device='0', stride=32, half=True):
+        self.trt_model = trt_model
         self.image_size = image_size
         self.device = device
         cuda = self.device != 'cpu' and torch.cuda.is_available()
@@ -21,8 +21,7 @@ class TrtInferer:
         self.stride = stride
         self.half = half
 
-        self.context, self.bindings, self.binding_addrs, self.trt_batch_size = self.init_trt_engine(
-            self.trt_engine_path)
+        self.context, self.bindings, self.binding_addrs, self.trt_batch_size = self.init_trt_engine()
 
     def process_images_numpy(self, img_src, img_size, stride, half):
         '''Process image before image inference.'''
@@ -69,20 +68,18 @@ class TrtInferer:
             imgs.append(img_src)
         return torch.stack(processed_imgs, axis=0), np.array(imgs)
 
-    def init_trt_engine(self, device):
-        cuda = device != 'cpu' and torch.cuda.is_available()
-        device = torch.device('cuda:0' if cuda else 'cpu')
+    def init_trt_engine(self):
         Binding = namedtuple('Binding', ('name', 'dtype', 'shape', 'data', 'ptr'))
         logger = trt.Logger(trt.Logger.ERROR)
         trt.init_libnvinfer_plugins(logger, namespace="")
-        with open(self.trt_engine_path, 'rb') as f, trt.Runtime(logger) as runtime:
+        with open(self.trt_model, 'rb') as f, trt.Runtime(logger) as runtime:
             model = runtime.deserialize_cuda_engine(f.read())
         bindings = OrderedDict()
         for index in range(model.num_bindings):
             name = model.get_tensor_name(index)
             dtype = trt.nptype(model.get_tensor_dtype(name))
             shape = tuple(model.get_tensor_shape(name))
-            data = torch.from_numpy(np.empty(shape, dtype=np.dtype(dtype))).to(device)
+            data = torch.from_numpy(np.empty(shape, dtype=np.dtype(dtype))).to(self.device)
             bindings[name] = Binding(name, dtype, shape, data, int(data.data_ptr()))
         binding_addrs = OrderedDict((n, d.ptr) for n, d in bindings.items())
         context = model.create_execution_context()
