@@ -107,7 +107,7 @@ blog post.
    All arguments can be found in ``./deploy/ONNX/export_onnx.py`` file.
 2. After exporting model to ONNX format You need to run quantization:
    ``python ./tools/quantization/tensorrt/post_training/onnx_to_tensorrt.py --onnx-model=<path_to_the_model> --explicit-batch --vv --fp16 --int8 --calibration-data=<path_to_calibration_data> --calibration-batch-size=<batch_size>``
-   All arguments can be found in ``./tools/quantization/tensorrt/post_training/onnx_to_tensorrt.py`` file.
+   All arguments can be found in ``./tools/quantization/tensorrt/post_training/onnx_to_tensorrt.py`` file.  To run quantization You need to have calibration data. The calibration data are training or testing data.
 3. To run pipeline on video utilizing TensorRT with operation precision INT8:
    ``python tensorrt_batch_test_speed_estimation.py --trt-model=<path_to_the_model> --test-name=<name_of_the_test_file> \\``
 
