@@ -116,7 +116,7 @@ def main():
     parser = argparse.ArgumentParser(description="Creates a TensorRT engine from the provided ONNX file.\n")
     parser.add_argument("--onnx", required=True, help="The ONNX model file to convert to TensorRT")
     parser.add_argument("-o", "--output", type=str, default="model.engine", help="The path at which to write the engine")
-    parser.add_argument("-b", "--max-batch-size", type=int, help="The max batch size for the TensorRT engine input")
+    parser.add_argument("-b", "--max-batch-size", default=32, type=int, help="The max batch size for the TensorRT engine input")
     parser.add_argument("-v", "--verbosity", action="count", help="Verbosity for logging. (None) for ERROR, (-v) for INFO/WARNING/ERROR, (-vv) for VERBOSE.")
     parser.add_argument("--explicit-batch", action='store_true', help="Set trt.NetworkDefinitionCreationFlag.EXPLICIT_BATCH.")
     parser.add_argument("--explicit-precision", action='store_true', help="Set trt.NetworkDefinitionCreationFlag.EXPLICIT_PRECISION.")
