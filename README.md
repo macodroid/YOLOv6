@@ -14,8 +14,8 @@ Contact information can be found [here](https://github.com/JakubSochor/BrnoCompS
 
 To train models and run whole pipeline You need to install requirements:
 
-``pip install -r requirements.txt``  
- 
+``pip install -r requirements.txt``
+
 Nvidia driver: **535.54.03**  
 CUDA version: **12.2**
 
@@ -111,9 +111,10 @@ blog post.
 3. To run pipeline on video utilizing TensorRT with operation precision INT8:
    ``python tensorrt_batch_test_speed_estimation.py --trt-model=<path_to_the_model> --test-name=<name_of_the_test_file> \\``
 
-All models can be found in [here](https://github.com/macodroid/YOLOv6)
-
 ## Evaluation of speed estimation pipeline for BrnoCompSpeed dataset
+
+All trained models on BrnoCompSpeed dataset can be downloaded
+from [here](https://drive.google.com/file/d/1l729UFXxHdzzTf1yJuJcpYbtrqPEIfPh/view?usp=sharing).
 
 To evaluate speed estimation You need to use ``eval.py``
 from [BrnoCompSpeed/code](https://github.com/JakubSochor/BrnoCompSpeed/tree/master/code) repository.
