@@ -14,7 +14,10 @@ Contact information can be found [here](https://github.com/JakubSochor/BrnoCompS
 
 To train models and run whole pipeline You need to install requirements:
 
-``pip install -r requirements.txt``
+``pip install -r requirements.txt``  
+ 
+Nvidia driver: **535.54.03**  
+CUDA version: **12.2**
 
 ## Training
 
